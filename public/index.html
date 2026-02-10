@@ -108,6 +108,46 @@
     }
     @keyframes spin { to { transform: rotate(360deg); } }
     
+    /* Mobile touch targets */
+    @media (max-width: 768px) {
+      .tweet { padding: 16px; }
+      .tweet-action { padding: 12px; margin: -12px; }
+      .tweet-avatar { width: 44px; height: 44px; }
+      .close-btn { width: 52px; height: 52px; top: 12px; left: 12px; }
+      .review-panel { margin-top: 80px; border-radius: 24px 24px 0 0; margin-bottom: 0; min-height: calc(100vh - 80px); }
+      .modal-overlay { align-items: flex-end; padding: 0; }
+      
+      /* Swipe indicator */
+      .swipe-indicator {
+        position: absolute;
+        top: 8px;
+        left: 50%;
+        transform: translateX(-50%);
+        width: 40px;
+        height: 5px;
+        background: rgba(255,255,255,0.3);
+        border-radius: 3px;
+      }
+    }
+    
+    /* Swipe feedback colors */
+    .swipe-left { background: linear-gradient(90deg, rgba(239, 68, 68, 0.3) 0%, transparent 50%); }
+    .swipe-right { background: linear-gradient(270deg, rgba(34, 211, 238, 0.3) 0%, transparent 50%); }
+    
+    .swipe-hint {
+      position: fixed;
+      top: 50%;
+      transform: translateY(-50%);
+      font-size: 48px;
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+      z-index: 130;
+    }
+    .swipe-hint.left { left: 30px; }
+    .swipe-hint.right { right: 30px; }
+    .swipe-hint.visible { opacity: 1; }
+    
     /* Progress bar */
     .progress-bar {
       position: fixed;
@@ -451,6 +491,10 @@
     </div>
   </div>
 
+  <!-- Swipe Hints -->
+  <div class="swipe-hint left">❌</div>
+  <div class="swipe-hint right">✅</div>
+
   <!-- Video Review Modal -->
   <div id="detail-modal" class="hidden modal-overlay">
     <!-- Big Close Button -->
@@ -517,16 +561,20 @@
         </div>
         
         <!-- Action Buttons -->
-        <div class="flex gap-3 mb-6">
-          <button onclick="updateStatus('approved')" class="flex-1 btn-primary text-navy font-bold py-3 rounded-full flex items-center justify-center gap-2 transition hover:opacity-90">
+        <div class="flex gap-3 mb-4">
+          <button onclick="updateStatus('approved')" class="flex-1 btn-primary text-navy font-bold py-3 rounded-full flex items-center justify-center gap-2 transition hover:opacity-90 active:scale-95">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
             Approve
           </button>
-          <button onclick="updateStatus('rejected')" class="flex-1 btn-danger text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition hover:opacity-90">
+          <button onclick="updateStatus('rejected')" class="flex-1 btn-danger text-white font-bold py-3 rounded-full flex items-center justify-center gap-2 transition hover:opacity-90 active:scale-95">
             <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
             Reject
           </button>
         </div>
+        <!-- Mobile swipe hint -->
+        <p class="text-center text-twitter-secondary text-xs mb-4 md:hidden">
+          ← Swipe left to reject • Swipe right to approve →
+        </p>
         
         <!-- Share Link -->
         <div class="bg-white/5 rounded-xl p-4 mb-4">
@@ -772,6 +820,9 @@
       renderFeedback(v.feedback);
       document.getElementById('detail-modal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      
+      // Initialize swipe gestures on mobile
+      setTimeout(initSwipeGestures, 100);
     }
 
     function closeDetailModal() {
@@ -1108,6 +1159,84 @@
         touchStartY = 0;
       }
     });
+    
+    // Swipe gestures for approve/reject in modal
+    let swipeStartX = 0;
+    let swipeStartY = 0;
+    let isSwiping = false;
+    const SWIPE_THRESHOLD = 100;
+    
+    function initSwipeGestures() {
+      const modal = document.getElementById('detail-modal');
+      const panel = modal.querySelector('.review-panel');
+      
+      if (!panel) return;
+      
+      // Add swipe indicator on mobile
+      if (window.innerWidth <= 768 && !panel.querySelector('.swipe-indicator')) {
+        const indicator = document.createElement('div');
+        indicator.className = 'swipe-indicator';
+        panel.insertBefore(indicator, panel.firstChild);
+      }
+      
+      panel.addEventListener('touchstart', (e) => {
+        swipeStartX = e.touches[0].clientX;
+        swipeStartY = e.touches[0].clientY;
+        isSwiping = true;
+      }, { passive: true });
+      
+      panel.addEventListener('touchmove', (e) => {
+        if (!isSwiping) return;
+        
+        const diffX = e.touches[0].clientX - swipeStartX;
+        const diffY = e.touches[0].clientY - swipeStartY;
+        
+        // Only horizontal swipes
+        if (Math.abs(diffX) < Math.abs(diffY)) return;
+        
+        // Visual feedback
+        const leftHint = document.querySelector('.swipe-hint.left');
+        const rightHint = document.querySelector('.swipe-hint.right');
+        
+        if (diffX < -SWIPE_THRESHOLD * 0.5) {
+          panel.classList.add('swipe-left');
+          panel.classList.remove('swipe-right');
+          if (leftHint) leftHint.classList.toggle('visible', diffX < -SWIPE_THRESHOLD);
+          if (rightHint) rightHint.classList.remove('visible');
+        } else if (diffX > SWIPE_THRESHOLD * 0.5) {
+          panel.classList.add('swipe-right');
+          panel.classList.remove('swipe-left');
+          if (rightHint) rightHint.classList.toggle('visible', diffX > SWIPE_THRESHOLD);
+          if (leftHint) leftHint.classList.remove('visible');
+        } else {
+          panel.classList.remove('swipe-left', 'swipe-right');
+          if (leftHint) leftHint.classList.remove('visible');
+          if (rightHint) rightHint.classList.remove('visible');
+        }
+      }, { passive: true });
+      
+      panel.addEventListener('touchend', (e) => {
+        if (!isSwiping) return;
+        
+        const diffX = e.changedTouches[0].clientX - swipeStartX;
+        const panel = document.querySelector('.review-panel');
+        
+        panel.classList.remove('swipe-left', 'swipe-right');
+        document.querySelectorAll('.swipe-hint').forEach(h => h.classList.remove('visible'));
+        
+        if (diffX < -SWIPE_THRESHOLD && currentVideoId) {
+          // Swipe left = Reject
+          updateStatus('rejected');
+          setTimeout(closeDetailModal, 300);
+        } else if (diffX > SWIPE_THRESHOLD && currentVideoId) {
+          // Swipe right = Approve
+          updateStatus('approved');
+          setTimeout(closeDetailModal, 300);
+        }
+        
+        isSwiping = false;
+      });
+    }
 
     // Timeline click to add timestamp comment
     let pendingTimestamp = null;
