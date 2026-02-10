@@ -350,6 +350,10 @@
               <span class="text-white/50 text-sm">Total</span>
               <span id="stat-total" class="text-white font-semibold">0</span>
             </div>
+            <div class="flex justify-between items-center hidden">
+              <span class="text-white/50 text-sm">💬 Feedback</span>
+              <span id="stat-feedback" class="text-orange font-semibold">0</span>
+            </div>
           </div>
         </div>
         
@@ -719,9 +723,22 @@
     }
 
     function updateStats() {
-      document.getElementById('stat-pending').textContent = videos.filter(v => v.status === 'pending').length;
-      document.getElementById('stat-approved').textContent = videos.filter(v => v.status === 'approved').length;
+      const pending = videos.filter(v => v.status === 'pending').length;
+      const approved = videos.filter(v => v.status === 'approved').length;
+      const unaddressedFeedback = videos.reduce((count, v) => {
+        return count + (v.feedback || []).filter(f => f.status !== 'addressed').length;
+      }, 0);
+      
+      document.getElementById('stat-pending').textContent = pending;
+      document.getElementById('stat-approved').textContent = approved;
       document.getElementById('stat-total').textContent = videos.length;
+      
+      // Update feedback count
+      const feedbackEl = document.getElementById('stat-feedback');
+      if (feedbackEl) {
+        feedbackEl.textContent = unaddressedFeedback;
+        feedbackEl.parentElement.classList.toggle('hidden', unaddressedFeedback === 0);
+      }
     }
 
     function openUploadModal() {
@@ -844,7 +861,7 @@
         const hasTimestamp = f.timestamp !== null && f.timestamp !== undefined;
         
         return `
-          <div class="bg-white/5 rounded-xl p-3 transition-all ${status === 'addressed' ? 'border border-green-500/30' : ''}" 
+          <div class="bg-white/5 rounded-xl p-3 transition-all group ${status === 'addressed' ? 'border border-green-500/30 opacity-60' : ''}" 
                data-feedback-item="${f.id}">
             <div class="flex justify-between items-start gap-2">
               <div class="flex-1">
@@ -856,10 +873,37 @@
                 ` : ''}
                 <div class="text-white text-sm">${f.message}</div>
               </div>
-              <span class="${statusColor} text-xs font-medium whitespace-nowrap">${statusIcon} ${statusText}</span>
+              <div class="flex items-center gap-2">
+                ${status !== 'addressed' ? `
+                  <button onclick="markFeedbackAddressed('${f.id}')" 
+                          class="opacity-0 group-hover:opacity-100 transition-opacity bg-green-500/20 hover:bg-green-500/30 text-green-400 text-xs px-2 py-1 rounded-full flex items-center gap-1"
+                          title="Mark as done">
+                    <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M5 13l4 4L19 7"/></svg>
+                    Done
+                  </button>
+                ` : ''}
+                <span class="${statusColor} text-xs font-medium whitespace-nowrap">${statusIcon}</span>
+              </div>
             </div>
             ${f.response ? `<div class="mt-2 pl-3 border-l-2 border-cyan/50 text-cyan text-xs">${f.response}</div>` : ''}
-            <div class="text-twitter-secondary text-xs mt-1">${f.author} · ${new Date(f.createdAt).toLocaleString()}</div>
+            <div class="flex items-center justify-between mt-2">
+              <div class="text-twitter-secondary text-xs">${f.author} · ${new Date(f.createdAt).toLocaleString()}</div>
+              ${status !== 'addressed' ? `
+                <button onclick="showReplyInput('${f.id}')" class="text-twitter-secondary hover:text-twitter-blue text-xs flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+                  <svg class="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M3 10h10a8 8 0 018 8v2M3 10l6 6m-6-6l6-6"/></svg>
+                  Reply
+                </button>
+              ` : ''}
+            </div>
+            <div id="reply-input-${f.id}" class="hidden mt-2">
+              <div class="flex gap-2">
+                <input type="text" placeholder="Your response..." 
+                       class="flex-1 bg-transparent border border-twitter-border rounded-full px-3 py-1 text-white text-xs focus:outline-none focus:border-cyan transition placeholder-twitter-secondary"
+                       onkeydown="if(event.key==='Enter'){submitReply('${f.id}', this.value); event.preventDefault();}">
+                <button onclick="submitReply('${f.id}', this.previousElementSibling.value)" 
+                        class="bg-cyan/20 hover:bg-cyan/30 text-cyan text-xs px-3 py-1 rounded-full transition">Send</button>
+              </div>
+            </div>
           </div>
         `;
       }).join('');
@@ -1174,6 +1218,60 @@
       const modal = document.getElementById('timestamp-input-modal');
       if (modal) modal.remove();
       pendingTimestamp = null;
+    }
+    
+    // Mark feedback as addressed
+    async function markFeedbackAddressed(feedbackId) {
+      if (!currentVideoId) return;
+      event.stopPropagation();
+      
+      try {
+        await fetch(`/api/videos/${currentVideoId}/feedback/${feedbackId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'addressed' })
+        });
+        
+        showToast('✅ Marked as done!', 'success');
+        await loadVideos();
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) renderFeedback(v.feedback);
+      } catch (err) {
+        showToast('Failed to update', 'error');
+      }
+    }
+    
+    // Show reply input
+    function showReplyInput(feedbackId) {
+      event.stopPropagation();
+      const input = document.getElementById(`reply-input-${feedbackId}`);
+      if (input) {
+        input.classList.toggle('hidden');
+        const textInput = input.querySelector('input');
+        if (textInput && !input.classList.contains('hidden')) {
+          textInput.focus();
+        }
+      }
+    }
+    
+    // Submit reply
+    async function submitReply(feedbackId, response) {
+      if (!response || !response.trim() || !currentVideoId) return;
+      
+      try {
+        await fetch(`/api/videos/${currentVideoId}/feedback/${feedbackId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ response: response.trim(), status: 'addressed' })
+        });
+        
+        showToast('💬 Reply sent & marked done!', 'success');
+        await loadVideos();
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) renderFeedback(v.feedback);
+      } catch (err) {
+        showToast('Failed to send reply', 'error');
+      }
     }
     
     // Init with skeleton loading first
