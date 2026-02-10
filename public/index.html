@@ -1479,16 +1479,39 @@
       e.preventDefault();
       const form = new FormData(e.target);
       const btn = e.target.querySelector('button[type="submit"]');
+      const file = form.get('video');
+      
+      // Client-side validation
+      if (!file || file.size === 0) {
+        showToast('Please select a video file', 'error');
+        return;
+      }
+      
+      if (file.size > 100 * 1024 * 1024) {
+        showToast('File too large. Maximum 100MB allowed.', 'error');
+        return;
+      }
+      
+      const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+      if (!allowedTypes.includes(file.type)) {
+        showToast('Invalid file type. Use MP4, WebM, MOV, or AVI.', 'error');
+        return;
+      }
+      
       btn.innerHTML = '<div class="spinner mx-auto"></div>';
       btn.disabled = true;
       
       try {
-        await fetch('/api/videos', { method: 'POST', body: form });
+        const res = await fetch('/api/videos', { method: 'POST', body: form });
+        if (!res.ok) {
+          const err = await res.json();
+          throw new Error(err.error || 'Upload failed');
+        }
         showToast('🎬 Video uploaded!', 'success');
         closeUploadModal();
         loadVideos();
       } catch (err) {
-        showToast('Upload failed', 'error');
+        showToast(err.message || 'Upload failed', 'error');
         btn.textContent = 'Upload';
         btn.disabled = false;
       }
@@ -1993,15 +2016,44 @@
     // Auto-refresh (every 30 seconds when tab is active)
     let autoRefreshInterval = null;
     let isTabActive = true;
+    let isOnline = navigator.onLine;
+    
+    function updateConnectionStatus() {
+      const indicator = document.getElementById('refresh-indicator');
+      if (!isOnline) {
+        indicator.innerHTML = '<span class="w-2 h-2 bg-red-500 rounded-full"></span> Offline';
+        indicator.classList.remove('hidden');
+      } else if (autoRefreshInterval) {
+        indicator.innerHTML = '<span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span> Live';
+        indicator.classList.remove('hidden');
+      }
+    }
+    
+    window.addEventListener('online', () => {
+      isOnline = true;
+      showToast('🌐 Back online!', 'success');
+      updateConnectionStatus();
+      loadVideos();
+    });
+    
+    window.addEventListener('offline', () => {
+      isOnline = false;
+      showToast('📴 You are offline', 'error');
+      updateConnectionStatus();
+    });
     
     function startAutoRefresh() {
-      document.getElementById('refresh-indicator').classList.remove('hidden');
+      updateConnectionStatus();
       
       autoRefreshInterval = setInterval(async () => {
-        if (isTabActive && !document.getElementById('detail-modal').classList.contains('hidden') === false) {
+        if (isTabActive && isOnline && !document.getElementById('detail-modal').classList.contains('hidden') === false) {
           // Only refresh if not in detail view
-          await loadVideos();
-          updateNotificationBadge();
+          try {
+            await loadVideos();
+            updateNotificationBadge();
+          } catch (err) {
+            console.warn('Auto-refresh failed:', err);
+          }
         }
       }, 30000); // Every 30 seconds
     }

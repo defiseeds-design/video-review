@@ -44,9 +44,37 @@ const storage = multer.diskStorage({
     cb(null, `${uuidv4()}${ext}`);
   }
 });
-const upload = multer({ storage });
+
+const fileFilter = (req, file, cb) => {
+  const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+  if (allowedTypes.includes(file.mimetype)) {
+    cb(null, true);
+  } else {
+    cb(new Error('Only video files are allowed (mp4, webm, mov, avi)'), false);
+  }
+};
+
+const upload = multer({ 
+  storage,
+  fileFilter,
+  limits: {
+    fileSize: 100 * 1024 * 1024, // 100MB limit
+    files: 1
+  }
+});
 
 // API Routes
+
+// Health check
+app.get('/api/health', (req, res) => {
+  const data = loadData();
+  res.json({
+    status: 'healthy',
+    timestamp: new Date().toISOString(),
+    videos: data.videos.length,
+    uptime: process.uptime()
+  });
+});
 
 // Get all videos with optional sorting
 app.get('/api/videos', (req, res) => {
@@ -287,6 +315,29 @@ app.post('/api/videos/import', (req, res) => {
   res.json(video);
 });
 
+// Error handling middleware
+app.use((err, req, res, next) => {
+  console.error('Error:', err.message);
+  res.status(500).json({ error: 'Something went wrong', message: err.message });
+});
+
+// 404 handler
+app.use((req, res) => {
+  if (req.accepts('html')) {
+    res.status(404).sendFile(path.join(__dirname, 'public', 'index.html'));
+  } else {
+    res.status(404).json({ error: 'Not found' });
+  }
+});
+
+// Graceful shutdown
+process.on('SIGTERM', () => {
+  console.log('SIGTERM received. Shutting down gracefully...');
+  process.exit(0);
+});
+
 app.listen(PORT, () => {
   console.log(`🎬 Video Review running at http://localhost:${PORT}`);
+  console.log(`📁 Videos stored in: ${path.resolve('./videos')}`);
+  console.log(`📊 Data file: ${path.resolve(DATA_FILE)}`);
 });
