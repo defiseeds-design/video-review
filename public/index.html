@@ -354,18 +354,34 @@
   
   <!-- Header Bar -->
   <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-twitter-border">
-    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
+    <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between gap-4">
       <div class="flex items-center gap-3">
         <div class="flex gap-1">
           <div class="w-3 h-3 rounded bg-navy border border-white/20"></div>
           <div class="w-3 h-3 rounded bg-cyan"></div>
           <div class="w-3 h-3 rounded bg-orange"></div>
         </div>
-        <span class="text-white font-semibold">Video Review</span>
+        <span class="text-white font-semibold hidden sm:block">Video Review</span>
       </div>
-      <button onclick="openUploadModal()" class="bg-twitter-blue hover:bg-twitter-blue/90 text-white font-bold px-4 py-2 rounded-full text-sm transition">
-        + Upload
-      </button>
+      
+      <!-- Search Bar -->
+      <div class="flex-1 max-w-md hidden md:block">
+        <div class="relative">
+          <svg class="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-twitter-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+            <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"/>
+          </svg>
+          <input type="text" id="search-input" placeholder="Search videos..." 
+                 class="w-full bg-white/5 border border-twitter-border rounded-full pl-10 pr-4 py-2 text-white text-sm placeholder-twitter-secondary focus:outline-none focus:border-twitter-blue transition"
+                 oninput="searchVideos(this.value)">
+        </div>
+      </div>
+      
+      <div class="flex items-center gap-2">
+        <button onclick="openUploadModal()" class="bg-twitter-blue hover:bg-twitter-blue/90 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+          <span class="hidden sm:inline">Upload</span>
+        </button>
+      </div>
     </div>
   </header>
 
@@ -444,11 +460,45 @@
     <!-- Right Sidebar (Desktop) -->
     <aside class="hidden xl:block w-80 shrink-0">
       <div class="sidebar">
-        <div class="glass rounded-2xl p-4 border border-white/5">
+        <div class="glass rounded-2xl p-4 border border-white/5 mb-4">
           <h3 class="text-white font-bold mb-2">About</h3>
           <p class="text-twitter-secondary text-sm leading-relaxed">
             Review and approve videos before they go live on Twitter. Click any video to see it in full detail.
           </p>
+        </div>
+        
+        <!-- Keyboard Shortcuts -->
+        <div class="glass rounded-2xl p-4 border border-white/5">
+          <h3 class="text-white font-bold mb-3 flex items-center gap-2">
+            <kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">⌘</kbd>
+            Shortcuts
+          </h3>
+          <div class="space-y-2 text-sm">
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Navigate</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">J</kbd> <kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">K</kbd></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Open video</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">Enter</kbd></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Approve</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">A</kbd></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Reject</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">R</kbd></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Upload</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">U</kbd></span>
+            </div>
+            <div class="flex justify-between">
+              <span class="text-twitter-secondary">Close</span>
+              <span class="text-white/60"><kbd class="bg-white/10 px-1.5 py-0.5 rounded text-xs">Esc</kbd></span>
+            </div>
+          </div>
         </div>
       </div>
     </aside>
@@ -686,6 +736,13 @@
       }
     }
 
+    let searchQuery = '';
+    
+    function searchVideos(query) {
+      searchQuery = query.toLowerCase().trim();
+      renderFeed();
+    }
+    
     function filterVideos(filter) {
       currentFilter = filter;
       document.querySelectorAll('.filter-btn').forEach(btn => {
@@ -733,12 +790,43 @@
       const empty = document.getElementById('empty-state');
       
       let filtered = videos;
+      
+      // Apply status filter
       if (currentFilter !== 'all') {
-        filtered = videos.filter(v => v.status === currentFilter);
+        filtered = filtered.filter(v => v.status === currentFilter);
+      }
+      
+      // Apply search filter
+      if (searchQuery) {
+        filtered = filtered.filter(v => 
+          v.title.toLowerCase().includes(searchQuery) ||
+          (v.description || '').toLowerCase().includes(searchQuery)
+        );
       }
       
       if (filtered.length === 0) {
         feed.innerHTML = '';
+        
+        // Show contextual empty state
+        const emptyHTML = searchQuery 
+          ? `<div class="text-center py-20 px-4 fade-in">
+              <div class="text-5xl mb-4">🔍</div>
+              <h2 class="text-white text-lg font-medium mb-2">No results for "${searchQuery}"</h2>
+              <p class="text-twitter-secondary mb-6">Try a different search term</p>
+              <button onclick="document.getElementById('search-input').value=''; searchVideos('')" class="text-twitter-blue hover:underline">Clear search</button>
+            </div>`
+          : currentFilter !== 'all'
+            ? `<div class="text-center py-20 px-4 fade-in">
+                <div class="text-5xl mb-4">${currentFilter === 'pending' ? '⏳' : '✅'}</div>
+                <h2 class="text-white text-lg font-medium mb-2">No ${currentFilter} videos</h2>
+                <p class="text-twitter-secondary mb-6">${currentFilter === 'pending' ? 'All caught up! No videos waiting for review.' : 'Approve some videos to see them here.'}</p>
+                <button onclick="filterVideos('all')" class="text-twitter-blue hover:underline">View all videos</button>
+              </div>`
+            : '';
+        
+        if (emptyHTML) {
+          empty.innerHTML = emptyHTML;
+        }
         empty.classList.remove('hidden');
         return;
       }
