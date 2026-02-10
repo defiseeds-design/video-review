@@ -234,6 +234,73 @@
       opacity: 0.7;
     }
     
+    /* Video player enhancements */
+    .video-container video {
+      background: #000;
+    }
+    .video-overlay {
+      position: absolute;
+      inset: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      background: rgba(0,0,0,0.3);
+      opacity: 0;
+      transition: opacity 0.2s;
+      pointer-events: none;
+    }
+    .video-container:hover .video-overlay:not(.playing) {
+      opacity: 1;
+    }
+    .play-button {
+      width: 64px;
+      height: 64px;
+      background: rgba(255,255,255,0.9);
+      border-radius: 50%;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      box-shadow: 0 4px 20px rgba(0,0,0,0.3);
+      pointer-events: auto;
+      cursor: pointer;
+      transition: transform 0.2s;
+    }
+    .play-button:hover { transform: scale(1.1); }
+    .play-button svg { width: 28px; height: 28px; color: #000; margin-left: 4px; }
+    
+    /* Fullscreen button */
+    .fullscreen-btn {
+      position: absolute;
+      bottom: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      border: none;
+      border-radius: 6px;
+      padding: 8px;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity 0.2s;
+      z-index: 5;
+    }
+    .video-container:hover .fullscreen-btn { opacity: 1; }
+    .fullscreen-btn:hover { background: rgba(0,0,0,0.8); }
+    .fullscreen-btn svg { width: 16px; height: 16px; color: white; }
+    
+    /* Loop indicator */
+    .loop-indicator {
+      position: absolute;
+      top: 12px;
+      right: 12px;
+      background: rgba(0,0,0,0.6);
+      padding: 4px 8px;
+      border-radius: 4px;
+      font-size: 11px;
+      color: white;
+      opacity: 0;
+      transition: opacity 0.2s;
+    }
+    .video-container:hover .loop-indicator { opacity: 1; }
+    
     /* Twitter Feed Styles */
     .twitter-feed { max-width: 600px; margin: 0 auto; }
     .tweet {
@@ -573,11 +640,15 @@
         </div>
         
         <!-- Video with Timeline Markers -->
-        <div class="tweet-media ml-[52px] video-container">
-          <video id="detail-video" controls class="tweet-video"></video>
+        <div class="tweet-media ml-[52px] video-container" id="video-container">
+          <video id="detail-video" controls loop class="tweet-video"></video>
           <div id="timeline-overlay" class="timeline-overlay" title="Click to add comment at this time">
             <!-- Timeline markers will be added dynamically -->
           </div>
+          <div class="loop-indicator">🔁 Loop</div>
+          <button class="fullscreen-btn" onclick="toggleFullscreen()" title="Fullscreen">
+            <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 8V4m0 0h4M4 4l5 5m11-1V4m0 0h-4m4 0l-5 5M4 16v4m0 0h4m-4 0l5-5m11 5l-5-5m5 5v-4m0 4h-4"/></svg>
+          </button>
         </div>
         
         <!-- Tweet Actions -->
@@ -835,12 +906,26 @@
       document.querySelectorAll('video[data-src]').forEach(v => lazyObserver.observe(v));
     }
     
-    // Preload video on hover
+    // Preload and preview video on hover
     function preloadVideo(element) {
       const video = element.querySelector('video[data-src]');
       if (video && video.dataset.src && !video.src) {
         video.src = video.dataset.src;
         video.load();
+      }
+      
+      // Play preview on hover
+      if (video && video.src) {
+        video.muted = true;
+        video.play().catch(() => {}); // Ignore autoplay errors
+      }
+    }
+    
+    function stopPreview(element) {
+      const video = element.querySelector('video');
+      if (video) {
+        video.pause();
+        video.currentTime = 0;
       }
     }
 
@@ -893,7 +978,7 @@
       empty.classList.add('hidden');
       
       feed.innerHTML = filtered.map((v, i) => `
-        <div class="tweet fade-in" style="animation-delay: ${i * 0.05}s" onclick="openDetail('${v.id}')" onmouseenter="preloadVideo(this)">
+        <div class="tweet fade-in" style="animation-delay: ${i * 0.05}s" onclick="openDetail('${v.id}')" onmouseenter="preloadVideo(this)" onmouseleave="stopPreview(this)">
           <div class="tweet-header">
             <div class="tweet-avatar">
               <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -1196,6 +1281,17 @@
       const text = encodeURIComponent(v.description || v.title);
       const url = encodeURIComponent(document.getElementById('share-link').value);
       window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=600,height=400');
+    }
+    
+    function toggleFullscreen() {
+      const video = document.getElementById('detail-video');
+      if (document.fullscreenElement) {
+        document.exitFullscreen();
+      } else if (video.requestFullscreen) {
+        video.requestFullscreen();
+      } else if (video.webkitRequestFullscreen) {
+        video.webkitRequestFullscreen();
+      }
     }
     
     async function replaceVideo(input) {
