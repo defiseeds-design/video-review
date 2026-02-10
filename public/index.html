@@ -707,6 +707,15 @@
             <button onclick="filterVideos('approved')" class="filter-btn w-full text-left px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5 transition" data-filter="approved">✅ Approved</button>
           </div>
         </div>
+        
+        <div class="glass rounded-2xl p-4 border border-white/5">
+          <h3 class="text-white/60 text-sm font-medium mb-3">📅 Date</h3>
+          <div class="space-y-2">
+            <button onclick="filterByDate('all')" class="date-btn w-full text-left px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5 transition" data-date="all">All time</button>
+            <button onclick="filterByDate('today')" class="date-btn w-full text-left px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5 transition" data-date="today">Today</button>
+            <button onclick="filterByDate('week')" class="date-btn w-full text-left px-3 py-2 rounded-lg text-sm text-white/80 hover:bg-white/5 transition" data-date="week">This week</button>
+          </div>
+        </div>
       </div>
     </aside>
 
@@ -1139,6 +1148,16 @@
 
     let searchQuery = '';
     let currentSort = 'date-desc';
+    let dateFilter = 'all';
+    
+    function filterByDate(filter) {
+      dateFilter = filter;
+      document.querySelectorAll('.date-btn').forEach(btn => {
+        btn.classList.toggle('text-twitter-blue', btn.dataset.date === filter);
+        btn.classList.toggle('bg-white/5', btn.dataset.date === filter);
+      });
+      renderFeed();
+    }
     
     function formatFileSize(bytes) {
       if (!bytes) return '';
@@ -1251,6 +1270,20 @@
           v.title.toLowerCase().includes(searchQuery) ||
           (v.description || '').toLowerCase().includes(searchQuery)
         );
+      }
+      
+      // Apply date filter
+      if (dateFilter !== 'all') {
+        const now = new Date();
+        const today = new Date(now.getFullYear(), now.getMonth(), now.getDate());
+        const weekAgo = new Date(today.getTime() - 7 * 24 * 60 * 60 * 1000);
+        
+        filtered = filtered.filter(v => {
+          const created = new Date(v.createdAt);
+          if (dateFilter === 'today') return created >= today;
+          if (dateFilter === 'week') return created >= weekAgo;
+          return true;
+        });
       }
       
       if (filtered.length === 0) {
