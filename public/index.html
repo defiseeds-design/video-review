@@ -626,12 +626,23 @@
           ← Swipe left to reject • Swipe right to approve →
         </p>
         
-        <!-- Share Link -->
+        <!-- Share & Replace -->
         <div class="bg-white/5 rounded-xl p-4 mb-4">
-          <div class="text-twitter-secondary text-xs font-medium mb-2 uppercase tracking-wider">Share Link</div>
-          <div class="flex gap-2 items-center">
+          <div class="text-twitter-secondary text-xs font-medium mb-2 uppercase tracking-wider">Share & Export</div>
+          <div class="flex gap-2 items-center mb-3">
             <input id="share-link" readonly class="flex-1 bg-transparent text-cyan text-sm truncate border-none outline-none">
             <button onclick="copyShareLink()" class="text-sm bg-twitter-blue/20 hover:bg-twitter-blue/30 text-twitter-blue px-3 py-1.5 rounded-lg transition">Copy</button>
+          </div>
+          <div class="flex gap-2">
+            <button onclick="shareToTwitter()" class="flex-1 bg-twitter-blue/20 hover:bg-twitter-blue/30 text-twitter-blue text-sm py-2 rounded-lg transition flex items-center justify-center gap-1">
+              <svg class="w-4 h-4" viewBox="0 0 24 24" fill="currentColor"><path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/></svg>
+              Post to X
+            </button>
+            <label class="flex-1 bg-orange/20 hover:bg-orange/30 text-orange text-sm py-2 rounded-lg transition flex items-center justify-center gap-1 cursor-pointer">
+              <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 4v5h.582m15.356 2A8.001 8.001 0 004.582 9m0 0H9m11 11v-5h-.581m0 0a8.003 8.003 0 01-15.357-2m15.357 2H15"/></svg>
+              Replace Video
+              <input type="file" accept="video/*" class="hidden" onchange="replaceVideo(this)">
+            </label>
           </div>
         </div>
         
@@ -1176,6 +1187,54 @@
       const btn = input.nextElementSibling;
       btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = 'Copy', 2000);
+    }
+    
+    function shareToTwitter() {
+      const v = videos.find(x => x.id === currentVideoId);
+      if (!v) return;
+      
+      const text = encodeURIComponent(v.description || v.title);
+      const url = encodeURIComponent(document.getElementById('share-link').value);
+      window.open(`https://twitter.com/intent/tweet?text=${text}&url=${url}`, '_blank', 'width=600,height=400');
+    }
+    
+    async function replaceVideo(input) {
+      if (!input.files.length || !currentVideoId) return;
+      
+      const file = input.files[0];
+      const formData = new FormData();
+      formData.append('video', file);
+      
+      // Show loading toast
+      showToast('📤 Uploading replacement...', 'info');
+      
+      try {
+        const res = await fetch(`/api/videos/${currentVideoId}/file`, {
+          method: 'PUT',
+          body: formData
+        });
+        
+        if (!res.ok) throw new Error('Upload failed');
+        
+        showToast('✅ Video replaced! Status reset to pending.', 'success');
+        await loadVideos();
+        
+        // Update the video player
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) {
+          const videoEl = document.getElementById('detail-video');
+          videoEl.src = `/videos/${v.filename}?t=${Date.now()}`; // Cache bust
+          videoEl.load();
+          
+          // Update status display
+          document.getElementById('detail-status').textContent = 'Pending';
+          document.getElementById('detail-status').className = 'inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold status-pending';
+        }
+      } catch (err) {
+        showToast('Failed to replace video', 'error');
+      }
+      
+      input.value = ''; // Reset file input
     }
 
     // File input label
