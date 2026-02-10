@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Video Review | Validator.com</title>
+  <meta property="og:title" content="Video Review - Validator.com">
+  <meta property="og:type" content="video.other">
+  <script src="https://cdn.tailwindcss.com"></script>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+  <script>
+    tailwind.config = {
+      theme: {
+        extend: {
+          fontFamily: { sans: ['Inter', 'system-ui', 'sans-serif'] },
+          colors: {
+            navy: '#1C2951',
+            cyan: '#22D3EE',
+            orange: '#E85D04',
+            lime: '#D4E157'
+          }
+        }
+      }
+    }
+  </script>
+  <style>
+    * { font-family: 'Inter', system-ui, sans-serif; }
+    body { background: #000; }
+    .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); -webkit-backdrop-filter: blur(20px); }
+    .status-pending { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #78350f; }
+    .status-approved { background: linear-gradient(135deg, #22D3EE 0%, #06b6d4 100%); color: #0e3a3d; }
+    .status-rejected { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); color: white; }
+    .btn-success { background: linear-gradient(135deg, #D4E157 0%, #c0ca33 100%); transition: all 0.3s ease; }
+    .btn-success:hover { transform: scale(1.02); box-shadow: 0 8px 24px rgba(212,225,87,0.3); }
+    .fade-in { animation: fadeIn 0.8s ease-out; }
+    @keyframes fadeIn { from { opacity: 0; transform: translateY(20px); } to { opacity: 1; transform: translateY(0); } }
+  </style>
+</head>
+<body class="min-h-screen flex items-center justify-center p-6">
+  <div class="w-full max-w-4xl fade-in">
+    <!-- Header -->
+    <div class="flex items-center justify-center gap-3 mb-10">
+      <div class="flex gap-1.5">
+        <div class="w-5 h-5 rounded-md bg-navy border border-white/10"></div>
+        <div class="w-5 h-5 rounded-md bg-cyan shadow-lg shadow-cyan/30"></div>
+        <div class="w-5 h-5 rounded-md bg-orange shadow-lg shadow-orange/30"></div>
+      </div>
+      <span class="text-white/50 font-medium">Validator.com</span>
+    </div>
+
+    <!-- Video Card -->
+    <div id="video-card" class="glass rounded-3xl overflow-hidden border border-white/5 shadow-2xl">
+      <div class="aspect-video bg-black">
+        <video id="video-player" controls class="w-full h-full"></video>
+      </div>
+      <div class="p-8">
+        <div class="flex items-start justify-between mb-4">
+          <div>
+            <h1 id="video-title" class="text-white text-3xl font-semibold mb-2"></h1>
+            <p id="video-date" class="text-white/40 text-sm"></p>
+          </div>
+          <span id="video-status" class="px-4 py-1.5 rounded-full text-sm font-semibold"></span>
+        </div>
+        <p id="video-description" class="text-white/50 text-lg leading-relaxed mb-8"></p>
+        <a id="download-btn" download class="btn-success block w-full text-navy font-semibold py-4 rounded-2xl text-center text-lg">
+          <span class="flex items-center justify-center gap-2">
+            <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download Video
+          </span>
+        </a>
+      </div>
+    </div>
+
+    <!-- Error State -->
+    <div id="error-state" class="hidden text-center py-20 fade-in">
+      <div class="w-24 h-24 mx-auto mb-6 rounded-full glass flex items-center justify-center">
+        <svg class="w-12 h-12 text-white/20" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M15 10l4.553-2.276A1 1 0 0121 8.618v6.764a1 1 0 01-1.447.894L15 14M5 18h8a2 2 0 002-2V8a2 2 0 00-2-2H5a2 2 0 00-2 2v8a2 2 0 002 2z"/></svg>
+      </div>
+      <h2 class="text-white text-2xl font-medium mb-3">Video not found</h2>
+      <p class="text-white/40">This link may have expired or the video was removed.</p>
+    </div>
+
+    <!-- Footer -->
+    <p class="text-center text-white/20 text-sm mt-10">
+      Powered by <a href="https://validator.com" class="text-cyan/60 hover:text-cyan transition">Validator.com</a>
+    </p>
+  </div>
+
+  <script>
+    async function loadVideo() {
+      const token = window.location.pathname.split('/').pop();
+      
+      try {
+        const res = await fetch(`/api/share/${token}`);
+        if (!res.ok) throw new Error('Not found');
+        
+        const video = await res.json();
+        
+        document.getElementById('video-player').src = `/videos/${video.filename}`;
+        document.getElementById('video-title').textContent = video.title;
+        document.getElementById('video-description').textContent = video.description || 'No description provided.';
+        document.getElementById('video-date').textContent = new Date(video.createdAt).toLocaleDateString('en-US', {
+          year: 'numeric', month: 'long', day: 'numeric'
+        });
+        document.getElementById('video-status').textContent = video.status.charAt(0).toUpperCase() + video.status.slice(1);
+        document.getElementById('video-status').className = `px-4 py-1.5 rounded-full text-sm font-semibold status-${video.status}`;
+        document.getElementById('download-btn').href = `/videos/${video.filename}`;
+        
+        // Update page title
+        document.title = `${video.title} | Validator.com`;
+        
+      } catch (err) {
+        document.getElementById('video-card').classList.add('hidden');
+        document.getElementById('error-state').classList.remove('hidden');
+      }
+    }
+
+    loadVideo();
+  </script>
+</body>
+</html>

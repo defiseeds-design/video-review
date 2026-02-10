@@ -1,0 +1,48 @@
+{
+  "videos": [
+    {
+      "id": "vid-003",
+      "title": "Test Video - Please Add Feedback!",
+      "description": "This is a test video to verify the platform is working. Please try adding some feedback to test the comment system!",
+      "filename": "test-video.mp4",
+      "originalName": "validator-apple.mp4",
+      "status": "pending",
+      "feedback": [],
+      "shareToken": "test01",
+      "createdAt": "2026-02-10T19:44:00.000Z",
+      "updatedAt": "2026-02-10T19:44:00.000Z"
+    },
+    {
+      "id": "vid-001",
+      "title": "Memecoin Degens vs Staking Chads",
+      "description": "Meme format video: Why chase pumps when you can earn 8.2% APY? 15 seconds, comedic timing.",
+      "filename": "degen-vs-chad.mp4",
+      "originalName": "degen-vs-chad.mp4",
+      "status": "pending",
+      "feedback": [],
+      "shareToken": "degen01",
+      "createdAt": "2026-02-10T19:14:00.000Z",
+      "updatedAt": "2026-02-10T19:14:00.000Z"
+    },
+    {
+      "id": "vid-002",
+      "title": "Bank 0.5% vs Solana 8.2%",
+      "description": "Comparison video showing traditional bank savings vs Solana staking returns. 20 seconds, Apple-style minimalist design.",
+      "filename": "bank-final.mp4",
+      "originalName": "bank-final.mp4",
+      "status": "approved",
+      "feedback": [
+        {
+          "id": "fb-001",
+          "author": "Nuno",
+          "message": "Approved for production!",
+          "timestamp": null,
+          "createdAt": "2026-02-10T19:10:00.000Z"
+        }
+      ],
+      "shareToken": "bank01",
+      "createdAt": "2026-02-10T19:10:00.000Z",
+      "updatedAt": "2026-02-10T19:10:00.000Z"
+    }
+  ]
+}
