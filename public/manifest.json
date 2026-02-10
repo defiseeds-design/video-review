@@ -1,0 +1,26 @@
+{
+  "name": "Video Review",
+  "short_name": "VideoReview",
+  "description": "Professional video review platform for content teams",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#000000",
+  "theme_color": "#22D3EE",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 512 512'><rect fill='%23000' width='512' height='512' rx='64'/><rect fill='%231C2951' x='80' y='180' width='100' height='100' rx='16'/><rect fill='%2322D3EE' x='206' y='180' width='100' height='100' rx='16'/><rect fill='%23E85D04' x='332' y='180' width='100' height='100' rx='16'/></svg>",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "categories": ["productivity", "business"],
+  "shortcuts": [
+    {
+      "name": "Upload Video",
+      "url": "/?action=upload",
+      "description": "Upload a new video for review"
+    }
+  ]
+}
