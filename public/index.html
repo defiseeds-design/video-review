@@ -914,6 +914,14 @@
 
   <!-- Video Review Modal -->
   <div id="detail-modal" class="hidden modal-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-title">
+    <!-- Navigation Arrows -->
+    <button onclick="navigateVideos(-1)" class="fixed left-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition z-110 hidden md:flex" title="Previous (←)">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <button onclick="navigateVideos(1)" class="fixed right-4 top-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-black/50 hover:bg-black/80 text-white flex items-center justify-center transition z-110 hidden md:flex" title="Next (→)">
+      <svg class="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 5l7 7-7 7"/></svg>
+    </button>
+    
     <!-- Big Close Button -->
     <button onclick="closeDetailModal()" class="close-btn" title="Close (Esc)">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
@@ -2606,13 +2614,35 @@
       }
     }
     
-    // Add ? key for shortcuts
+    // Add ? key for shortcuts + arrow navigation in modal
     document.addEventListener('keydown', (e) => {
       if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
       if (e.key === '?' || (e.shiftKey && e.key === '/')) {
         showShortcutsModal();
+        return;
+      }
+      
+      // Arrow navigation between videos when modal is open
+      if (currentVideoId && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+        navigateVideos(e.key === 'ArrowLeft' ? -1 : 1);
+        return;
       }
     });
+    
+    function navigateVideos(direction) {
+      const filtered = getFilteredVideos();
+      const currentIndex = filtered.findIndex(v => v.id === currentVideoId);
+      if (currentIndex === -1) return;
+      
+      const newIndex = currentIndex + direction;
+      if (newIndex < 0 || newIndex >= filtered.length) {
+        showToast(direction < 0 ? '⬅️ First video' : '➡️ Last video', 'info');
+        return;
+      }
+      
+      openDetail(filtered[newIndex].id);
+    }
     
     // Export approved videos
     function exportApproved() {
