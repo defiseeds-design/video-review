@@ -1,5 +1,5 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="en" class="scroll-smooth">
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -38,6 +38,38 @@
   <style>
     * { font-family: 'Inter', system-ui, sans-serif; }
     body { background: #000; }
+    
+    /* Accessibility */
+    .sr-only { position: absolute; width: 1px; height: 1px; padding: 0; margin: -1px; overflow: hidden; clip: rect(0,0,0,0); border: 0; }
+    :focus-visible { outline: 2px solid #22D3EE; outline-offset: 2px; }
+    button:focus-visible, a:focus-visible, input:focus-visible, textarea:focus-visible, select:focus-visible {
+      outline: 2px solid #22D3EE;
+      outline-offset: 2px;
+    }
+    
+    /* Reduced motion preference */
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+      }
+    }
+    
+    /* Print styles */
+    @media print {
+      body { background: white !important; color: black !important; }
+      .modal-overlay, header, aside, .tweet-actions { display: none !important; }
+      .tweet { break-inside: avoid; border: 1px solid #ccc; }
+      video { display: none; }
+      .tweet::after { content: "[Video]"; display: block; padding: 20px; background: #f5f5f5; text-align: center; }
+    }
+    
+    /* High contrast mode */
+    @media (prefers-contrast: high) {
+      .glass { background: rgba(0,0,0,0.9); border: 2px solid white; }
+      .tweet-status { border: 2px solid currentColor; }
+    }
     .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); }
     .status-pending { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #78350f; }
     .status-approved { background: linear-gradient(135deg, #22D3EE 0%, #06b6d4 100%); color: #0e3a3d; }
@@ -419,6 +451,11 @@
 </head>
 <body class="min-h-screen text-white">
   
+  <!-- Skip to main content (accessibility) -->
+  <a href="#tweet-feed" class="sr-only focus:not-sr-only focus:absolute focus:top-4 focus:left-4 focus:z-[1000] focus:bg-twitter-blue focus:text-white focus:px-4 focus:py-2 focus:rounded-lg">
+    Skip to content
+  </a>
+  
   <!-- Progress Bar -->
   <div id="progress-bar" class="progress-bar" style="width: 0%; display: none;"></div>
   
@@ -462,8 +499,8 @@
           Live
         </div>
         
-        <button onclick="openUploadModal()" class="bg-twitter-blue hover:bg-twitter-blue/90 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1">
-          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
+        <button onclick="openUploadModal()" class="bg-twitter-blue hover:bg-twitter-blue/90 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1 focus:outline-none focus:ring-2 focus:ring-twitter-blue focus:ring-offset-2 focus:ring-offset-black" aria-label="Upload new video">
+          <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24" aria-hidden="true"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           <span class="hidden sm:inline">Upload</span>
         </button>
       </div>
@@ -666,7 +703,7 @@
   <div class="swipe-hint right">✅</div>
 
   <!-- Video Review Modal -->
-  <div id="detail-modal" class="hidden modal-overlay">
+  <div id="detail-modal" class="hidden modal-overlay" role="dialog" aria-modal="true" aria-labelledby="detail-title">
     <!-- Big Close Button -->
     <button onclick="closeDetailModal()" class="close-btn" title="Close (Esc)">
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
