@@ -39,8 +39,85 @@
     .btn-primary { background: linear-gradient(135deg, #22D3EE 0%, #06b6d4 100%); }
     .btn-danger { background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%); }
     .btn-success { background: linear-gradient(135deg, #D4E157 0%, #c0ca33 100%); }
-    .fade-in { animation: fadeIn 0.4s ease-out; }
+    .fade-in { animation: fadeIn 0.4s cubic-bezier(0.16, 1, 0.3, 1); }
     @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+    
+    /* Smoother slide transitions */
+    .slide-up { animation: slideUp 0.5s cubic-bezier(0.16, 1, 0.3, 1); }
+    @keyframes slideUp { from { opacity: 0; transform: translateY(30px); } to { opacity: 1; transform: translateY(0); } }
+    
+    .scale-in { animation: scaleIn 0.3s cubic-bezier(0.34, 1.56, 0.64, 1); }
+    @keyframes scaleIn { from { opacity: 0; transform: scale(0.9); } to { opacity: 1; transform: scale(1); } }
+    
+    /* Skeleton loading */
+    .skeleton {
+      background: linear-gradient(90deg, rgba(255,255,255,0.03) 0%, rgba(255,255,255,0.08) 50%, rgba(255,255,255,0.03) 100%);
+      background-size: 200% 100%;
+      animation: shimmer 1.5s infinite;
+      border-radius: 8px;
+    }
+    @keyframes shimmer { 0% { background-position: 200% 0; } 100% { background-position: -200% 0; } }
+    
+    /* Toast notifications */
+    .toast {
+      position: fixed;
+      bottom: 24px;
+      left: 50%;
+      transform: translateX(-50%) translateY(100px);
+      background: #1d9bf0;
+      color: white;
+      padding: 12px 24px;
+      border-radius: 50px;
+      font-weight: 500;
+      z-index: 200;
+      opacity: 0;
+      transition: all 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+      pointer-events: none;
+    }
+    .toast.show {
+      transform: translateX(-50%) translateY(0);
+      opacity: 1;
+    }
+    .toast.error { background: #ef4444; }
+    .toast.success { background: #22c55e; }
+    
+    /* Better video hover effects */
+    .tweet-media video {
+      transition: transform 0.3s cubic-bezier(0.16, 1, 0.3, 1);
+    }
+    .tweet:hover .tweet-media video {
+      transform: scale(1.01);
+    }
+    
+    /* Status badge animation */
+    .tweet-status {
+      transition: all 0.3s ease;
+    }
+    .tweet:hover .tweet-status {
+      transform: scale(1.05);
+    }
+    
+    /* Loading spinner */
+    .spinner {
+      width: 20px;
+      height: 20px;
+      border: 2px solid rgba(255,255,255,0.3);
+      border-top-color: white;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
+    
+    /* Progress bar */
+    .progress-bar {
+      position: fixed;
+      top: 0;
+      left: 0;
+      height: 3px;
+      background: linear-gradient(90deg, #22D3EE, #1d9bf0);
+      z-index: 1000;
+      transition: width 0.3s ease;
+    }
     
     /* Twitter Feed Styles */
     .twitter-feed { max-width: 600px; margin: 0 auto; }
@@ -154,6 +231,12 @@
 </head>
 <body class="min-h-screen text-white">
   
+  <!-- Progress Bar -->
+  <div id="progress-bar" class="progress-bar" style="width: 0%; display: none;"></div>
+  
+  <!-- Toast Notification -->
+  <div id="toast" class="toast"></div>
+  
   <!-- Header Bar -->
   <header class="fixed top-0 left-0 right-0 z-50 bg-black/80 backdrop-blur-md border-b border-twitter-border">
     <div class="max-w-7xl mx-auto px-4 py-3 flex items-center justify-between">
@@ -224,6 +307,11 @@
       <!-- Tweets/Videos -->
       <div id="tweet-feed">
         <!-- Tweets loaded dynamically -->
+      </div>
+      
+      <!-- Skeleton Loading State -->
+      <div id="skeleton-feed" class="hidden">
+        <!-- Skeleton tweets for loading -->
       </div>
       
       <div id="empty-state" class="hidden text-center py-20 px-4">
@@ -393,12 +481,73 @@
     let videos = [];
     let currentVideoId = null;
     let currentFilter = 'all';
+    let isLoading = false;
+    
+    // Toast notification system
+    function showToast(message, type = 'info') {
+      const toast = document.getElementById('toast');
+      toast.textContent = message;
+      toast.className = `toast ${type}`;
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+    }
+    
+    // Progress bar
+    function showProgress(percent) {
+      const bar = document.getElementById('progress-bar');
+      bar.style.display = 'block';
+      bar.style.width = percent + '%';
+      if (percent >= 100) {
+        setTimeout(() => { bar.style.display = 'none'; bar.style.width = '0%'; }, 300);
+      }
+    }
+    
+    // Skeleton loading
+    function showSkeletonLoading() {
+      const feed = document.getElementById('tweet-feed');
+      const skeletonCount = 3;
+      feed.innerHTML = Array(skeletonCount).fill().map(() => `
+        <div class="tweet">
+          <div class="tweet-header">
+            <div class="tweet-avatar skeleton" style="background: none;"><div class="skeleton w-10 h-10 rounded-full"></div></div>
+            <div class="tweet-content">
+              <div class="tweet-author">
+                <div class="skeleton h-4 w-32 mb-2"></div>
+              </div>
+              <div class="skeleton h-4 w-48 mb-3"></div>
+              <div class="tweet-media">
+                <div class="skeleton" style="aspect-ratio: 1/1;"></div>
+              </div>
+              <div class="tweet-actions mt-3">
+                <div class="skeleton h-4 w-8"></div>
+                <div class="skeleton h-4 w-8"></div>
+                <div class="skeleton h-4 w-8"></div>
+                <div class="skeleton h-4 w-8"></div>
+              </div>
+            </div>
+          </div>
+        </div>
+      `).join('');
+    }
 
     async function loadVideos() {
-      const res = await fetch('/api/videos');
-      videos = await res.json();
-      renderFeed();
-      updateStats();
+      if (isLoading) return;
+      isLoading = true;
+      showProgress(30);
+      
+      try {
+        const res = await fetch('/api/videos');
+        showProgress(70);
+        videos = await res.json();
+        showProgress(100);
+        renderFeed();
+        updateStats();
+      } catch (err) {
+        showToast('Failed to load videos', 'error');
+        showProgress(100);
+      } finally {
+        isLoading = false;
+      }
     }
 
     function filterVideos(filter) {
@@ -557,16 +706,34 @@
 
     async function updateStatus(status) {
       if (!currentVideoId) return;
-      await fetch(`/api/videos/${currentVideoId}`, {
-        method: 'PATCH',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ status })
-      });
-      await loadVideos();
-      const v = videos.find(x => x.id === currentVideoId);
-      if (v) {
-        document.getElementById('detail-status').textContent = status.charAt(0).toUpperCase() + status.slice(1);
-        document.getElementById('detail-status').className = `inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold status-${status}`;
+      
+      const btn = event.target.closest('button');
+      const originalText = btn.innerHTML;
+      btn.innerHTML = '<div class="spinner mx-auto"></div>';
+      btn.disabled = true;
+      
+      try {
+        await fetch(`/api/videos/${currentVideoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status })
+        });
+        
+        const toastType = status === 'approved' ? 'success' : 'error';
+        const emoji = status === 'approved' ? '✅' : '❌';
+        showToast(`${emoji} Video ${status}!`, toastType);
+        
+        await loadVideos();
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) {
+          document.getElementById('detail-status').textContent = status.charAt(0).toUpperCase() + status.slice(1);
+          document.getElementById('detail-status').className = `inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold status-${status}`;
+        }
+      } catch (err) {
+        showToast('Failed to update status', 'error');
+      } finally {
+        btn.innerHTML = originalText;
+        btn.disabled = false;
       }
     }
 
@@ -594,26 +761,48 @@
       e.preventDefault();
       const form = new FormData(e.target);
       const btn = e.target.querySelector('button[type="submit"]');
-      btn.textContent = 'Uploading...';
+      btn.innerHTML = '<div class="spinner mx-auto"></div>';
       btn.disabled = true;
-      await fetch('/api/videos', { method: 'POST', body: form });
-      closeUploadModal();
-      loadVideos();
+      
+      try {
+        await fetch('/api/videos', { method: 'POST', body: form });
+        showToast('🎬 Video uploaded!', 'success');
+        closeUploadModal();
+        loadVideos();
+      } catch (err) {
+        showToast('Upload failed', 'error');
+        btn.textContent = 'Upload';
+        btn.disabled = false;
+      }
     });
 
     document.getElementById('feedback-form').addEventListener('submit', async (e) => {
       e.preventDefault();
       if (!currentVideoId) return;
+      
       const msg = e.target.message.value;
-      await fetch(`/api/videos/${currentVideoId}/feedback`, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ message: msg, author: 'Reviewer' })
-      });
-      e.target.reset();
-      await loadVideos();
-      const v = videos.find(x => x.id === currentVideoId);
-      if (v) renderFeedback(v.feedback);
+      const btn = e.target.querySelector('button[type="submit"]');
+      const originalHTML = btn.innerHTML;
+      btn.innerHTML = '<div class="spinner"></div>';
+      btn.disabled = true;
+      
+      try {
+        await fetch(`/api/videos/${currentVideoId}/feedback`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ message: msg, author: 'Reviewer' })
+        });
+        e.target.reset();
+        showToast('💬 Feedback added!', 'success');
+        await loadVideos();
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) renderFeedback(v.feedback);
+      } catch (err) {
+        showToast('Failed to add feedback', 'error');
+      } finally {
+        btn.innerHTML = originalHTML;
+        btn.disabled = false;
+      }
     });
 
     // Keyboard & click outside to close
@@ -632,7 +821,91 @@
       if (e.target.classList.contains('modal-overlay')) closeUploadModal();
     });
 
-    // Init
+    // Keyboard shortcuts
+    document.addEventListener('keydown', (e) => {
+      // Don't trigger shortcuts when typing in inputs
+      if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA') return;
+      
+      // Escape to close modals
+      if (e.key === 'Escape') {
+        closeUploadModal();
+        closeDetailModal();
+        return;
+      }
+      
+      // When modal is open
+      if (currentVideoId) {
+        if (e.key === 'a' || e.key === 'A') {
+          updateStatus('approved');
+        } else if (e.key === 'r' || e.key === 'R') {
+          updateStatus('rejected');
+        }
+        return;
+      }
+      
+      // Feed navigation
+      if (e.key === 'j' || e.key === 'ArrowDown') {
+        navigateFeed(1);
+      } else if (e.key === 'k' || e.key === 'ArrowUp') {
+        navigateFeed(-1);
+      } else if (e.key === 'Enter' || e.key === 'o') {
+        const active = document.querySelector('.tweet.active');
+        if (active) active.click();
+      } else if (e.key === 'u') {
+        openUploadModal();
+      }
+    });
+    
+    let activeTweetIndex = -1;
+    function navigateFeed(direction) {
+      const tweets = document.querySelectorAll('#tweet-feed .tweet');
+      if (tweets.length === 0) return;
+      
+      tweets.forEach(t => t.classList.remove('active', 'bg-white/5'));
+      
+      activeTweetIndex = Math.max(0, Math.min(activeTweetIndex + direction, tweets.length - 1));
+      const active = tweets[activeTweetIndex];
+      if (active) {
+        active.classList.add('active', 'bg-white/5');
+        active.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      }
+    }
+    
+    // Pull to refresh on mobile
+    let touchStartY = 0;
+    let isPulling = false;
+    
+    document.addEventListener('touchstart', (e) => {
+      if (window.scrollY === 0) {
+        touchStartY = e.touches[0].clientY;
+        isPulling = true;
+      }
+    });
+    
+    document.addEventListener('touchmove', (e) => {
+      if (!isPulling) return;
+      const touchY = e.touches[0].clientY;
+      const pullDistance = touchY - touchStartY;
+      
+      if (pullDistance > 80) {
+        showProgress(Math.min(pullDistance - 80, 100));
+      }
+    });
+    
+    document.addEventListener('touchend', () => {
+      if (isPulling) {
+        const bar = document.getElementById('progress-bar');
+        if (parseFloat(bar.style.width) >= 50) {
+          loadVideos();
+          showToast('🔄 Refreshed!');
+        }
+        isPulling = false;
+        touchStartY = 0;
+      }
+    });
+
+    // Init with skeleton loading first
+    showSkeletonLoading();
     loadVideos();
   </script>
 </body>
