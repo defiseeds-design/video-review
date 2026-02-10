@@ -444,6 +444,18 @@
       </div>
       
       <div class="flex items-center gap-2">
+        <!-- Notification Bell -->
+        <button id="notification-btn" onclick="toggleNotifications()" class="relative p-2 text-twitter-secondary hover:text-white transition rounded-full hover:bg-white/5">
+          <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9"/></svg>
+          <span id="notification-badge" class="hidden absolute -top-1 -right-1 bg-orange text-white text-xs w-5 h-5 rounded-full flex items-center justify-center font-bold">0</span>
+        </button>
+        
+        <!-- Auto-refresh indicator -->
+        <div id="refresh-indicator" class="hidden text-twitter-secondary text-xs flex items-center gap-1">
+          <span class="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+          Live
+        </div>
+        
         <button onclick="openUploadModal()" class="bg-twitter-blue hover:bg-twitter-blue/90 text-white font-bold px-4 py-2 rounded-full text-sm transition flex items-center gap-1">
           <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 4v16m8-8H4"/></svg>
           <span class="hidden sm:inline">Upload</span>
@@ -1823,9 +1835,73 @@
       if (e.target.classList.contains('modal-overlay')) closeDeleteModal();
     });
 
+    // Notifications
+    let notifications = [];
+    let lastFeedbackCount = 0;
+    
+    function updateNotificationBadge() {
+      const totalFeedback = videos.reduce((count, v) => {
+        return count + (v.feedback || []).filter(f => f.status !== 'addressed').length;
+      }, 0);
+      
+      const badge = document.getElementById('notification-badge');
+      if (totalFeedback > lastFeedbackCount && lastFeedbackCount > 0) {
+        // New feedback received!
+        const newCount = totalFeedback - lastFeedbackCount;
+        showToast(`💬 ${newCount} new feedback received!`, 'info');
+        
+        // Play notification sound (optional)
+        try {
+          const audio = new Audio('data:audio/wav;base64,UklGRl9vT19XQVZFZm10IBAAAAABAAEAQB8AAEAfAAABAAgAZGF0YU');
+          audio.volume = 0.3;
+          audio.play().catch(() => {});
+        } catch(e) {}
+      }
+      
+      lastFeedbackCount = totalFeedback;
+      
+      if (totalFeedback > 0) {
+        badge.textContent = totalFeedback > 9 ? '9+' : totalFeedback;
+        badge.classList.remove('hidden');
+      } else {
+        badge.classList.add('hidden');
+      }
+    }
+    
+    function toggleNotifications() {
+      showToast('📬 Notifications coming soon!', 'info');
+    }
+    
+    // Auto-refresh (every 30 seconds when tab is active)
+    let autoRefreshInterval = null;
+    let isTabActive = true;
+    
+    function startAutoRefresh() {
+      document.getElementById('refresh-indicator').classList.remove('hidden');
+      
+      autoRefreshInterval = setInterval(async () => {
+        if (isTabActive && !document.getElementById('detail-modal').classList.contains('hidden') === false) {
+          // Only refresh if not in detail view
+          await loadVideos();
+          updateNotificationBadge();
+        }
+      }, 30000); // Every 30 seconds
+    }
+    
+    document.addEventListener('visibilitychange', () => {
+      isTabActive = !document.hidden;
+      if (isTabActive) {
+        loadVideos(); // Refresh when tab becomes active
+        updateNotificationBadge();
+      }
+    });
+    
     // Init with skeleton loading first
     showSkeletonLoading();
-    loadVideos();
+    loadVideos().then(() => {
+      updateNotificationBadge();
+      startAutoRefresh();
+    });
   </script>
 </body>
 </html>
