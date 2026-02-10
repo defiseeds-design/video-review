@@ -70,6 +70,40 @@
       .glass { background: rgba(0,0,0,0.9); border: 2px solid white; }
       .tweet-status { border: 2px solid currentColor; }
     }
+    
+    /* Selection mode */
+    .tweet.select-mode {
+      cursor: pointer;
+      position: relative;
+    }
+    .tweet.select-mode::before {
+      content: '';
+      position: absolute;
+      top: 16px;
+      right: 16px;
+      width: 24px;
+      height: 24px;
+      border: 2px solid #71767b;
+      border-radius: 50%;
+      z-index: 5;
+      transition: all 0.2s;
+    }
+    .tweet.select-mode.selected::before {
+      background: #22D3EE;
+      border-color: #22D3EE;
+    }
+    .tweet.select-mode.selected::after {
+      content: '✓';
+      position: absolute;
+      top: 17px;
+      right: 21px;
+      color: #000;
+      font-size: 14px;
+      font-weight: bold;
+      z-index: 6;
+    }
+    .tweet.select-mode:hover { background: rgba(255,255,255,0.03); }
+    .tweet.selected { background: rgba(34,211,238,0.05) !important; }
     .glass { background: rgba(255,255,255,0.03); backdrop-filter: blur(20px); }
     .status-pending { background: linear-gradient(135deg, #fbbf24 0%, #f59e0b 100%); color: #78350f; }
     .status-approved { background: linear-gradient(135deg, #22D3EE 0%, #06b6d4 100%); color: #0e3a3d; }
@@ -589,6 +623,9 @@
             <p class="text-twitter-secondary text-sm">Review videos before posting to Twitter</p>
           </div>
           <div class="flex items-center gap-2">
+            <button onclick="toggleSelectMode()" id="select-mode-btn" class="text-twitter-secondary hover:text-white px-2 py-1 rounded transition text-sm hidden md:block">
+              ☑️ Select
+            </button>
             <select id="sort-select" onchange="sortVideos(this.value)" class="bg-transparent border border-twitter-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-twitter-blue cursor-pointer">
               <option value="date-desc" class="bg-black">Newest first</option>
               <option value="date-asc" class="bg-black">Oldest first</option>
@@ -596,6 +633,16 @@
               <option value="feedback-desc" class="bg-black">Most feedback</option>
             </select>
           </div>
+        </div>
+        
+        <!-- Bulk Actions Bar (hidden by default) -->
+        <div id="bulk-actions" class="hidden mt-3 flex items-center gap-3 py-2">
+          <span id="selected-count" class="text-twitter-secondary text-sm">0 selected</span>
+          <button onclick="selectAll()" class="text-twitter-blue text-sm hover:underline">Select all</button>
+          <button onclick="deselectAll()" class="text-twitter-secondary text-sm hover:underline">Clear</button>
+          <div class="flex-1"></div>
+          <button onclick="bulkApprove()" class="bg-cyan/20 text-cyan text-sm px-3 py-1 rounded-full hover:bg-cyan/30 transition">✓ Approve</button>
+          <button onclick="bulkReject()" class="bg-red-500/20 text-red-400 text-sm px-3 py-1 rounded-full hover:bg-red-500/30 transition">✗ Reject</button>
         </div>
       </div>
       
@@ -1132,7 +1179,7 @@
       empty.classList.add('hidden');
       
       feed.innerHTML = filtered.map((v, i) => `
-        <div class="tweet fade-in" style="animation-delay: ${i * 0.05}s" onclick="openDetail('${v.id}')" onmouseenter="preloadVideo(this)" onmouseleave="stopPreview(this)">
+        <div class="tweet fade-in" style="animation-delay: ${i * 0.05}s" onclick="selectMode ? toggleVideoSelection('${v.id}', this, event) : openDetail('${v.id}')" onmouseenter="preloadVideo(this)" onmouseleave="stopPreview(this)" data-video-id="${v.id}">
           <div class="tweet-header">
             <div class="tweet-avatar">
               <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -2187,6 +2234,131 @@
     function closeShortcutsModal() {
       const modal = document.getElementById('shortcuts-modal');
       if (modal) modal.remove();
+    }
+    
+    // Bulk selection mode
+    let selectMode = false;
+    let selectedVideos = new Set();
+    
+    function toggleSelectMode() {
+      selectMode = !selectMode;
+      const btn = document.getElementById('select-mode-btn');
+      const actions = document.getElementById('bulk-actions');
+      
+      if (selectMode) {
+        btn.textContent = '✗ Cancel';
+        btn.classList.add('text-red-400');
+        actions.classList.remove('hidden');
+        document.querySelectorAll('.tweet').forEach(t => {
+          t.classList.add('select-mode');
+        });
+      } else {
+        btn.textContent = '☑️ Select';
+        btn.classList.remove('text-red-400');
+        actions.classList.add('hidden');
+        selectedVideos.clear();
+        document.querySelectorAll('.tweet').forEach(t => {
+          t.classList.remove('select-mode', 'selected');
+        });
+      }
+      updateSelectedCount();
+    }
+    
+    function toggleVideoSelection(id, element, event) {
+      if (!selectMode) return;
+      event.stopPropagation();
+      
+      if (selectedVideos.has(id)) {
+        selectedVideos.delete(id);
+        element.classList.remove('selected');
+      } else {
+        selectedVideos.add(id);
+        element.classList.add('selected');
+      }
+      updateSelectedCount();
+    }
+    
+    function updateSelectedCount() {
+      document.getElementById('selected-count').textContent = `${selectedVideos.size} selected`;
+    }
+    
+    function selectAll() {
+      const filtered = getFilteredVideos();
+      filtered.forEach(v => {
+        selectedVideos.add(v.id);
+      });
+      document.querySelectorAll('.tweet').forEach(t => t.classList.add('selected'));
+      updateSelectedCount();
+    }
+    
+    function deselectAll() {
+      selectedVideos.clear();
+      document.querySelectorAll('.tweet').forEach(t => t.classList.remove('selected'));
+      updateSelectedCount();
+    }
+    
+    function getFilteredVideos() {
+      let filtered = videos;
+      if (currentFilter !== 'all') {
+        filtered = filtered.filter(v => v.status === currentFilter);
+      }
+      if (searchQuery) {
+        filtered = filtered.filter(v => 
+          v.title.toLowerCase().includes(searchQuery) ||
+          (v.description || '').toLowerCase().includes(searchQuery)
+        );
+      }
+      return filtered;
+    }
+    
+    async function bulkApprove() {
+      if (selectedVideos.size === 0) return;
+      
+      showToast(`Approving ${selectedVideos.size} videos...`, 'info');
+      
+      try {
+        await Promise.all(
+          Array.from(selectedVideos).map(id => 
+            fetch(`/api/videos/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'approved' })
+            })
+          )
+        );
+        
+        showToast(`✅ ${selectedVideos.size} videos approved!`, 'success');
+        toggleSelectMode();
+        loadVideos();
+      } catch (err) {
+        showToast('Some videos failed to update', 'error');
+      }
+    }
+    
+    async function bulkReject() {
+      if (selectedVideos.size === 0) return;
+      
+      if (!confirm(`Reject ${selectedVideos.size} videos?`)) return;
+      
+      showToast(`Rejecting ${selectedVideos.size} videos...`, 'info');
+      
+      try {
+        await Promise.all(
+          Array.from(selectedVideos).map(id => 
+            fetch(`/api/videos/${id}`, {
+              method: 'PATCH',
+              headers: { 'Content-Type': 'application/json' },
+              body: JSON.stringify({ status: 'rejected' })
+            })
+          )
+        );
+        
+        showToast(`❌ ${selectedVideos.size} videos rejected`, 'success');
+        toggleSelectMode();
+        loadVideos();
+      } catch (err) {
+        showToast('Some videos failed to update', 'error');
+      }
     }
     
     // Add ? key for shortcuts
