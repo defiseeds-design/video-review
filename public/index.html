@@ -514,22 +514,55 @@
     <aside class="hidden lg:block w-64 shrink-0">
       <div class="sidebar">
         <div class="glass rounded-2xl p-4 border border-white/5 mb-4">
-          <h3 class="text-white/60 text-sm font-medium mb-3">Stats</h3>
-          <div class="space-y-3">
-            <div class="flex justify-between items-center">
-              <span class="text-white/50 text-sm">Pending</span>
+          <h3 class="text-white/60 text-sm font-medium mb-3">📊 Dashboard</h3>
+          
+          <!-- Progress Ring -->
+          <div class="flex items-center justify-center mb-4">
+            <div class="relative w-24 h-24">
+              <svg class="w-24 h-24 transform -rotate-90">
+                <circle cx="48" cy="48" r="40" stroke="currentColor" stroke-width="8" fill="none" class="text-white/5"/>
+                <circle id="progress-ring" cx="48" cy="48" r="40" stroke="currentColor" stroke-width="8" fill="none" 
+                        class="text-cyan" stroke-dasharray="251" stroke-dashoffset="251" stroke-linecap="round"
+                        style="transition: stroke-dashoffset 0.5s ease"/>
+              </svg>
+              <div class="absolute inset-0 flex flex-col items-center justify-center">
+                <span id="approval-rate" class="text-2xl font-bold text-white">0%</span>
+                <span class="text-xs text-white/40">approved</span>
+              </div>
+            </div>
+          </div>
+          
+          <div class="space-y-2">
+            <div class="flex justify-between items-center py-1">
+              <span class="text-white/50 text-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-yellow-400"></span>
+                Pending
+              </span>
               <span id="stat-pending" class="text-yellow-400 font-semibold">0</span>
             </div>
-            <div class="flex justify-between items-center">
-              <span class="text-white/50 text-sm">Approved</span>
+            <div class="flex justify-between items-center py-1">
+              <span class="text-white/50 text-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-cyan"></span>
+                Approved
+              </span>
               <span id="stat-approved" class="text-cyan font-semibold">0</span>
             </div>
-            <div class="flex justify-between items-center">
+            <div class="flex justify-between items-center py-1">
+              <span class="text-white/50 text-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-red-400"></span>
+                Rejected
+              </span>
+              <span id="stat-rejected" class="text-red-400 font-semibold">0</span>
+            </div>
+            <div class="flex justify-between items-center py-1 pt-2 border-t border-white/5">
               <span class="text-white/50 text-sm">Total</span>
               <span id="stat-total" class="text-white font-semibold">0</span>
             </div>
-            <div class="flex justify-between items-center hidden">
-              <span class="text-white/50 text-sm">💬 Feedback</span>
+            <div id="feedback-stat-row" class="flex justify-between items-center py-1 hidden">
+              <span class="text-white/50 text-sm flex items-center gap-2">
+                <span class="w-2 h-2 rounded-full bg-orange"></span>
+                Feedback
+              </span>
               <span id="stat-feedback" class="text-orange font-semibold">0</span>
             </div>
           </div>
@@ -1159,19 +1192,35 @@
     function updateStats() {
       const pending = videos.filter(v => v.status === 'pending').length;
       const approved = videos.filter(v => v.status === 'approved').length;
+      const rejected = videos.filter(v => v.status === 'rejected').length;
+      const total = videos.length;
       const unaddressedFeedback = videos.reduce((count, v) => {
         return count + (v.feedback || []).filter(f => f.status !== 'addressed').length;
       }, 0);
       
       document.getElementById('stat-pending').textContent = pending;
       document.getElementById('stat-approved').textContent = approved;
-      document.getElementById('stat-total').textContent = videos.length;
+      document.getElementById('stat-rejected').textContent = rejected;
+      document.getElementById('stat-total').textContent = total;
+      
+      // Update approval rate ring
+      const approvalRate = total > 0 ? Math.round((approved / total) * 100) : 0;
+      const ring = document.getElementById('progress-ring');
+      const rateEl = document.getElementById('approval-rate');
+      
+      if (ring && rateEl) {
+        const circumference = 251; // 2 * PI * 40
+        const offset = circumference - (approvalRate / 100) * circumference;
+        ring.style.strokeDashoffset = offset;
+        rateEl.textContent = approvalRate + '%';
+      }
       
       // Update feedback count
       const feedbackEl = document.getElementById('stat-feedback');
-      if (feedbackEl) {
+      const feedbackRow = document.getElementById('feedback-stat-row');
+      if (feedbackEl && feedbackRow) {
         feedbackEl.textContent = unaddressedFeedback;
-        feedbackEl.parentElement.classList.toggle('hidden', unaddressedFeedback === 0);
+        feedbackRow.classList.toggle('hidden', unaddressedFeedback === 0);
       }
     }
 
