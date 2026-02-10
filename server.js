@@ -122,6 +122,32 @@ app.post('/api/videos/:id/feedback', (req, res) => {
   res.json(feedback);
 });
 
+// Update video file (replace existing video)
+app.put('/api/videos/:id/file', upload.single('video'), (req, res) => {
+  if (!req.file) return res.status(400).json({ error: 'No video uploaded' });
+  
+  const data = loadData();
+  const idx = data.videos.findIndex(v => v.id === req.params.id);
+  if (idx === -1) {
+    // Clean up uploaded file
+    fs.unlinkSync(req.file.path);
+    return res.status(404).json({ error: 'Video not found' });
+  }
+  
+  // Delete old file
+  const oldPath = path.join('./videos', data.videos[idx].filename);
+  if (fs.existsSync(oldPath)) fs.unlinkSync(oldPath);
+  
+  // Update record with new file
+  data.videos[idx].filename = req.file.filename;
+  data.videos[idx].originalName = req.file.originalname;
+  data.videos[idx].updatedAt = new Date().toISOString();
+  data.videos[idx].status = 'pending'; // Reset to pending for re-review
+  
+  saveData(data);
+  res.json(data.videos[idx]);
+});
+
 // Delete video
 app.delete('/api/videos/:id', (req, res) => {
   const data = loadData();
