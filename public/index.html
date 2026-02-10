@@ -1326,7 +1326,7 @@
       empty.classList.add('hidden');
       
       feed.innerHTML = filtered.map((v, i) => `
-        <div class="tweet fade-in" style="animation-delay: ${i * 0.05}s" onclick="selectMode ? toggleVideoSelection('${v.id}', this, event) : openDetail('${v.id}')" onmouseenter="preloadVideo(this)" onmouseleave="stopPreview(this)" data-video-id="${v.id}">
+        <div class="tweet fade-in group" style="animation-delay: ${i * 0.05}s" onclick="selectMode ? toggleVideoSelection('${v.id}', this, event) : openDetail('${v.id}')" onmouseenter="preloadVideo(this)" onmouseleave="stopPreview(this)" data-video-id="${v.id}">
           <div class="tweet-header">
             <div class="tweet-avatar">
               <svg class="w-5 h-5 text-white" viewBox="0 0 24 24" fill="currentColor">
@@ -1356,6 +1356,9 @@
                     ${formatDuration(v.duration)}
                   </span>
                 ` : ''}
+                <button onclick="event.stopPropagation(); quickCopyLink('${v.shareToken}')" class="absolute bottom-3 left-3 bg-black/80 hover:bg-black px-2 py-1 rounded text-xs text-white opacity-0 group-hover:opacity-100 transition flex items-center gap-1" title="Copy share link">
+                  📋 Copy link
+                </button>
               </div>
               
               <div class="tweet-actions">
@@ -1682,6 +1685,12 @@
       const btn = input.nextElementSibling;
       btn.textContent = 'Copied!';
       setTimeout(() => btn.textContent = 'Copy', 2000);
+    }
+    
+    function quickCopyLink(token) {
+      const url = `${location.origin}/share/${token}`;
+      navigator.clipboard.writeText(url);
+      showToast('📋 Link copied!', 'success');
     }
     
     function shareToTwitter() {
