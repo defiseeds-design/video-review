@@ -655,10 +655,58 @@
           </form>
         </div>
         
-        <!-- Download -->
-        <a id="download-link" download class="btn-success block w-full text-navy font-bold py-3 rounded-full text-center transition hover:opacity-90">
-          ↓ Download Video
-        </a>
+        <!-- Download & Actions -->
+        <div class="flex gap-3">
+          <a id="download-link" download class="flex-1 btn-success text-navy font-bold py-3 rounded-full text-center transition hover:opacity-90 flex items-center justify-center gap-2">
+            <svg class="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4 16v1a3 3 0 003 3h10a3 3 0 003-3v-1m-4-4l-4 4m0 0l-4-4m4 4V4"/></svg>
+            Download
+          </a>
+          <button onclick="showEditModal()" class="px-4 py-3 border border-twitter-border text-white rounded-full hover:bg-white/5 transition" title="Edit">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"/></svg>
+          </button>
+          <button onclick="confirmDelete()" class="px-4 py-3 border border-red-500/50 text-red-400 rounded-full hover:bg-red-500/10 transition" title="Delete">
+            <svg class="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"/></svg>
+          </button>
+        </div>
+        
+        <!-- Last updated -->
+        <p id="detail-updated" class="text-twitter-secondary text-xs text-center mt-4"></p>
+      </div>
+    </div>
+  </div>
+  
+  <!-- Edit Modal -->
+  <div id="edit-modal" class="hidden modal-overlay" style="z-index: 115;">
+    <div class="review-panel p-6 fade-in max-w-md">
+      <h2 class="text-white text-xl font-bold mb-6">Edit Video</h2>
+      <form id="edit-form">
+        <div class="mb-4">
+          <label class="block text-twitter-secondary text-sm mb-2">Title</label>
+          <input type="text" id="edit-title" required
+            class="w-full bg-transparent border border-twitter-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-twitter-blue transition">
+        </div>
+        <div class="mb-6">
+          <label class="block text-twitter-secondary text-sm mb-2">Description (Tweet text)</label>
+          <textarea id="edit-description" rows="3"
+            class="w-full bg-transparent border border-twitter-border rounded-lg px-4 py-3 text-white focus:outline-none focus:border-twitter-blue transition resize-none"></textarea>
+        </div>
+        <div class="flex gap-3">
+          <button type="button" onclick="closeEditModal()" class="flex-1 border border-twitter-border text-white py-3 rounded-full font-bold hover:bg-white/5 transition">Cancel</button>
+          <button type="submit" class="flex-1 bg-twitter-blue hover:bg-twitter-blue/90 text-white py-3 rounded-full font-bold transition">Save Changes</button>
+        </div>
+      </form>
+    </div>
+  </div>
+  
+  <!-- Delete Confirmation Modal -->
+  <div id="delete-modal" class="hidden modal-overlay" style="z-index: 115;">
+    <div class="review-panel p-6 fade-in max-w-sm text-center">
+      <div class="text-5xl mb-4">🗑️</div>
+      <h2 class="text-white text-xl font-bold mb-2">Delete Video?</h2>
+      <p class="text-twitter-secondary mb-6">This action cannot be undone. The video and all feedback will be permanently deleted.</p>
+      <div class="flex gap-3">
+        <button onclick="closeDeleteModal()" class="flex-1 border border-twitter-border text-white py-3 rounded-full font-bold hover:bg-white/5 transition">Cancel</button>
+        <button onclick="deleteVideo()" class="flex-1 bg-red-500 hover:bg-red-600 text-white py-3 rounded-full font-bold transition">Delete</button>
       </div>
     </div>
   </div>
@@ -939,6 +987,14 @@
       document.getElementById('download-link').href = `/videos/${v.filename}`;
       
       renderFeedback(v.feedback);
+      
+      // Show last updated
+      const updatedEl = document.getElementById('detail-updated');
+      if (updatedEl && v.updatedAt) {
+        const updated = new Date(v.updatedAt);
+        updatedEl.textContent = `Last updated ${updated.toLocaleDateString()} at ${updated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+      }
+      
       document.getElementById('detail-modal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
       
@@ -1524,6 +1580,94 @@
       }
     }
     
+    // Edit modal functions
+    function showEditModal() {
+      const v = videos.find(x => x.id === currentVideoId);
+      if (!v) return;
+      
+      document.getElementById('edit-title').value = v.title;
+      document.getElementById('edit-description').value = v.description || '';
+      document.getElementById('edit-modal').classList.remove('hidden');
+    }
+    
+    function closeEditModal() {
+      document.getElementById('edit-modal').classList.add('hidden');
+    }
+    
+    document.getElementById('edit-form').addEventListener('submit', async (e) => {
+      e.preventDefault();
+      if (!currentVideoId) return;
+      
+      const btn = e.target.querySelector('button[type="submit"]');
+      btn.innerHTML = '<div class="spinner mx-auto"></div>';
+      btn.disabled = true;
+      
+      try {
+        const title = document.getElementById('edit-title').value;
+        const description = document.getElementById('edit-description').value;
+        
+        await fetch(`/api/videos/${currentVideoId}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ title, description })
+        });
+        
+        showToast('✏️ Video updated!', 'success');
+        closeEditModal();
+        await loadVideos();
+        
+        // Update detail modal
+        const v = videos.find(x => x.id === currentVideoId);
+        if (v) {
+          document.getElementById('detail-title').textContent = v.title;
+          document.getElementById('detail-tweet-text').textContent = v.description || v.title;
+        }
+      } catch (err) {
+        showToast('Failed to update', 'error');
+      } finally {
+        btn.textContent = 'Save Changes';
+        btn.disabled = false;
+      }
+    });
+    
+    // Delete modal functions
+    function confirmDelete() {
+      document.getElementById('delete-modal').classList.remove('hidden');
+    }
+    
+    function closeDeleteModal() {
+      document.getElementById('delete-modal').classList.add('hidden');
+    }
+    
+    async function deleteVideo() {
+      if (!currentVideoId) return;
+      
+      const btn = document.querySelector('#delete-modal button:last-child');
+      btn.innerHTML = '<div class="spinner mx-auto"></div>';
+      btn.disabled = true;
+      
+      try {
+        await fetch(`/api/videos/${currentVideoId}`, { method: 'DELETE' });
+        showToast('🗑️ Video deleted!', 'success');
+        closeDeleteModal();
+        closeDetailModal();
+        await loadVideos();
+      } catch (err) {
+        showToast('Failed to delete', 'error');
+        btn.textContent = 'Delete';
+        btn.disabled = false;
+      }
+    }
+    
+    // Close modals on click outside
+    document.getElementById('edit-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) closeEditModal();
+    });
+    
+    document.getElementById('delete-modal').addEventListener('click', (e) => {
+      if (e.target.classList.contains('modal-overlay')) closeDeleteModal();
+    });
+
     // Init with skeleton loading first
     showSkeletonLoading();
     loadVideos();
