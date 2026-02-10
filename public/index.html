@@ -537,12 +537,22 @@
         list.innerHTML = '<p class="text-twitter-secondary text-sm italic">No feedback yet</p>';
         return;
       }
-      list.innerHTML = feedback.map(f => `
-        <div class="bg-white/5 rounded-xl p-3">
-          <div class="text-white text-sm">${f.message}</div>
-          <div class="text-twitter-secondary text-xs mt-1">${f.author} · ${new Date(f.createdAt).toLocaleString()}</div>
-        </div>
-      `).join('');
+      list.innerHTML = feedback.map(f => {
+        const status = f.status || 'pending';
+        const statusIcon = status === 'addressed' ? '✅' : status === 'seen' ? '👀' : '⏳';
+        const statusColor = status === 'addressed' ? 'text-green-400' : status === 'seen' ? 'text-blue-400' : 'text-yellow-400';
+        const statusText = status === 'addressed' ? 'Done' : status === 'seen' ? 'Seen' : 'Pending';
+        return `
+          <div class="bg-white/5 rounded-xl p-3 ${status === 'addressed' ? 'border border-green-500/30' : ''}">
+            <div class="flex justify-between items-start gap-2">
+              <div class="text-white text-sm flex-1">${f.message}</div>
+              <span class="${statusColor} text-xs font-medium whitespace-nowrap">${statusIcon} ${statusText}</span>
+            </div>
+            ${f.response ? `<div class="mt-2 pl-3 border-l-2 border-cyan/50 text-cyan text-xs">${f.response}</div>` : ''}
+            <div class="text-twitter-secondary text-xs mt-1">${f.author} · ${new Date(f.createdAt).toLocaleString()}</div>
+          </div>
+        `;
+      }).join('');
     }
 
     async function updateStatus(status) {

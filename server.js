@@ -111,7 +111,8 @@ app.post('/api/videos/:id/feedback', (req, res) => {
     id: uuidv4(),
     author: req.body.author || 'Anonymous',
     message: req.body.message,
-    timestamp: req.body.timestamp || null, // Video timestamp for timecoded feedback
+    timestamp: req.body.timestamp || null,
+    status: 'pending', // pending, seen, addressed
     createdAt: new Date().toISOString()
   };
   
@@ -120,6 +121,24 @@ app.post('/api/videos/:id/feedback', (req, res) => {
   saveData(data);
   
   res.json(feedback);
+});
+
+// Mark feedback as seen/addressed
+app.patch('/api/videos/:id/feedback/:feedbackId', (req, res) => {
+  const data = loadData();
+  const vidIdx = data.videos.findIndex(v => v.id === req.params.id);
+  if (vidIdx === -1) return res.status(404).json({ error: 'Video not found' });
+  
+  const fbIdx = data.videos[vidIdx].feedback.findIndex(f => f.id === req.params.feedbackId);
+  if (fbIdx === -1) return res.status(404).json({ error: 'Feedback not found' });
+  
+  const { status, response } = req.body;
+  if (status) data.videos[vidIdx].feedback[fbIdx].status = status;
+  if (response) data.videos[vidIdx].feedback[fbIdx].response = response;
+  data.videos[vidIdx].feedback[fbIdx].addressedAt = new Date().toISOString();
+  
+  saveData(data);
+  res.json(data.videos[vidIdx].feedback[fbIdx]);
 });
 
 // Update video file (replace existing video)
