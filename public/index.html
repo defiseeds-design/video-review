@@ -1103,13 +1103,35 @@
     let currentFilter = 'all';
     let isLoading = false;
     
+    // Last action for undo
+    let lastAction = null;
+    
     // Toast notification system
-    function showToast(message, type = 'info') {
+    function showToast(message, type = 'info', undoCallback = null) {
       const toast = document.getElementById('toast');
-      toast.textContent = message;
+      
+      if (undoCallback) {
+        toast.innerHTML = `${message} <button onclick="undoAction()" class="ml-2 underline font-bold">Undo</button>`;
+        lastAction = undoCallback;
+      } else {
+        toast.textContent = message;
+        lastAction = null;
+      }
+      
       toast.className = `toast ${type}`;
       toast.classList.add('show');
-      setTimeout(() => toast.classList.remove('show'), 3000);
+      setTimeout(() => {
+        toast.classList.remove('show');
+        lastAction = null;
+      }, 5000);
+    }
+    
+    function undoAction() {
+      if (lastAction) {
+        lastAction();
+        lastAction = null;
+        document.getElementById('toast').classList.remove('show');
+      }
     }
     
     // Progress bar
@@ -1678,7 +1700,19 @@
         
         const toastType = status === 'approved' ? 'success' : 'error';
         const emoji = status === 'approved' ? '✅' : '❌';
-        showToast(`${emoji} Video ${status}!`, toastType);
+        const prevStatus = videos.find(x => x.id === currentVideoId)?.status || 'pending';
+        const videoId = currentVideoId;
+        
+        showToast(`${emoji} Video ${status}!`, toastType, async () => {
+          // Undo callback
+          await fetch(`/api/videos/${videoId}`, {
+            method: 'PATCH',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ status: prevStatus })
+          });
+          showToast('↩️ Action undone!', 'success');
+          loadVideos();
+        });
         
         // Celebrate on approval!
         if (status === 'approved') celebrate();
