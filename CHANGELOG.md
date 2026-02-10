@@ -2,7 +2,9 @@
 
 All notable changes to Video Review Platform.
 
-## [1.0.0] - 2026-02-10
+## [1.0.0] - 2026-02-11 (Night Release 🌙)
+
+*30 improvement cycles completed overnight*
 
 ### ✨ Features
 - **Twitter-style feed** - Videos displayed as realistic Twitter post previews
@@ -16,6 +18,12 @@ All notable changes to Video Review Platform.
 - **Share links** - Unique URLs for external reviewers
 - **Video replacement** - Update video file while keeping feedback
 - **Post to X** - One-click sharing to Twitter
+- **Drag & drop upload** - Drop videos anywhere to upload
+- **Bulk actions** - Select and approve/reject multiple videos
+- **Date filters** - Filter by today, this week, all time
+- **Export** - Download approved videos list as JSON
+- **Undo actions** - 5-second undo window after approve/reject
+- **Arrow navigation** - Navigate between videos with ← → keys
 
 ### 🎨 UI/UX
 - Dark mode interface
