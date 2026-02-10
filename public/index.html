@@ -507,8 +507,20 @@
     <main class="flex-1 border-x border-twitter-border min-h-screen">
       <!-- Feed Header -->
       <div class="sticky top-16 bg-black/80 backdrop-blur-md border-b border-twitter-border px-4 py-3 z-10">
-        <h2 class="text-white font-bold text-xl">Video Feed</h2>
-        <p class="text-twitter-secondary text-sm">Review videos before posting to Twitter</p>
+        <div class="flex items-center justify-between">
+          <div>
+            <h2 class="text-white font-bold text-xl">Video Feed</h2>
+            <p class="text-twitter-secondary text-sm">Review videos before posting to Twitter</p>
+          </div>
+          <div class="flex items-center gap-2">
+            <select id="sort-select" onchange="sortVideos(this.value)" class="bg-transparent border border-twitter-border rounded-lg px-3 py-1.5 text-sm text-white focus:outline-none focus:border-twitter-blue cursor-pointer">
+              <option value="date-desc" class="bg-black">Newest first</option>
+              <option value="date-asc" class="bg-black">Oldest first</option>
+              <option value="title-asc" class="bg-black">A → Z</option>
+              <option value="feedback-desc" class="bg-black">Most feedback</option>
+            </select>
+          </div>
+        </div>
       </div>
       
       <!-- Mobile Filter Tabs -->
@@ -763,8 +775,12 @@
           </button>
         </div>
         
-        <!-- Last updated -->
-        <p id="detail-updated" class="text-twitter-secondary text-xs text-center mt-4"></p>
+        <!-- Video info -->
+        <div class="flex items-center justify-center gap-4 text-twitter-secondary text-xs mt-4">
+          <span id="detail-size"></span>
+          <span>•</span>
+          <span id="detail-updated"></span>
+        </div>
       </div>
     </div>
   </div>
@@ -879,9 +895,36 @@
     }
 
     let searchQuery = '';
+    let currentSort = 'date-desc';
+    
+    function formatFileSize(bytes) {
+      if (!bytes) return '';
+      if (bytes < 1024) return bytes + ' B';
+      if (bytes < 1024 * 1024) return (bytes / 1024).toFixed(1) + ' KB';
+      return (bytes / (1024 * 1024)).toFixed(1) + ' MB';
+    }
     
     function searchVideos(query) {
       searchQuery = query.toLowerCase().trim();
+      renderFeed();
+    }
+    
+    function sortVideos(sortValue) {
+      currentSort = sortValue;
+      const [field, order] = sortValue.split('-');
+      
+      videos.sort((a, b) => {
+        let valA, valB;
+        switch(field) {
+          case 'date': valA = new Date(a.createdAt); valB = new Date(b.createdAt); break;
+          case 'title': valA = a.title.toLowerCase(); valB = b.title.toLowerCase(); break;
+          case 'feedback': valA = (a.feedback || []).length; valB = (b.feedback || []).length; break;
+          default: return 0;
+        }
+        if (order === 'asc') return valA > valB ? 1 : -1;
+        return valA < valB ? 1 : -1;
+      });
+      
       renderFeed();
     }
     
@@ -1096,12 +1139,21 @@
       
       renderFeedback(v.feedback);
       
+      // Show file size
+      const sizeEl = document.getElementById('detail-size');
+      if (sizeEl) {
+        sizeEl.textContent = v.fileSize ? formatFileSize(v.fileSize) : '';
+      }
+      
       // Show last updated
       const updatedEl = document.getElementById('detail-updated');
       if (updatedEl && v.updatedAt) {
         const updated = new Date(v.updatedAt);
-        updatedEl.textContent = `Last updated ${updated.toLocaleDateString()} at ${updated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
+        updatedEl.textContent = `Updated ${updated.toLocaleDateString()} ${updated.toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'})}`;
       }
+      
+      // Track view
+      fetch(`/api/videos/${v.id}/view`, { method: 'POST' }).catch(() => {});
       
       document.getElementById('detail-modal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';

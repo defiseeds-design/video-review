@@ -48,10 +48,45 @@ const upload = multer({ storage });
 
 // API Routes
 
-// Get all videos
+// Get all videos with optional sorting
 app.get('/api/videos', (req, res) => {
   const data = loadData();
-  res.json(data.videos);
+  let videos = [...data.videos];
+  
+  // Sorting
+  const { sort, order } = req.query;
+  if (sort) {
+    videos.sort((a, b) => {
+      let valA, valB;
+      switch(sort) {
+        case 'date': valA = new Date(a.createdAt); valB = new Date(b.createdAt); break;
+        case 'title': valA = a.title.toLowerCase(); valB = b.title.toLowerCase(); break;
+        case 'status': valA = a.status; valB = b.status; break;
+        case 'feedback': valA = (a.feedback || []).length; valB = (b.feedback || []).length; break;
+        default: return 0;
+      }
+      if (order === 'asc') return valA > valB ? 1 : -1;
+      return valA < valB ? 1 : -1;
+    });
+  }
+  
+  res.json(videos);
+});
+
+// Get stats
+app.get('/api/stats', (req, res) => {
+  const data = loadData();
+  const stats = {
+    total: data.videos.length,
+    pending: data.videos.filter(v => v.status === 'pending').length,
+    approved: data.videos.filter(v => v.status === 'approved').length,
+    rejected: data.videos.filter(v => v.status === 'rejected').length,
+    totalFeedback: data.videos.reduce((sum, v) => sum + (v.feedback || []).length, 0),
+    pendingFeedback: data.videos.reduce((sum, v) => sum + (v.feedback || []).filter(f => f.status !== 'addressed').length, 0),
+    totalViews: data.videos.reduce((sum, v) => sum + (v.views || 0), 0),
+    totalSize: data.videos.reduce((sum, v) => sum + (v.fileSize || 0), 0)
+  };
+  res.json(stats);
 });
 
 // Get single video
@@ -73,9 +108,12 @@ app.post('/api/videos', upload.single('video'), (req, res) => {
     description: req.body.description || '',
     filename: req.file.filename,
     originalName: req.file.originalname,
+    fileSize: req.file.size, // File size in bytes
+    mimeType: req.file.mimetype,
     status: 'pending', // pending, approved, rejected
     feedback: [],
     shareToken: uuidv4().split('-')[0], // Short share token
+    views: 0,
     createdAt: new Date().toISOString(),
     updatedAt: new Date().toISOString()
   };
@@ -83,6 +121,17 @@ app.post('/api/videos', upload.single('video'), (req, res) => {
   data.videos.unshift(video);
   saveData(data);
   res.json(video);
+});
+
+// Track video view
+app.post('/api/videos/:id/view', (req, res) => {
+  const data = loadData();
+  const idx = data.videos.findIndex(v => v.id === req.params.id);
+  if (idx === -1) return res.status(404).json({ error: 'Video not found' });
+  
+  data.videos[idx].views = (data.videos[idx].views || 0) + 1;
+  saveData(data);
+  res.json({ views: data.videos[idx].views });
 });
 
 // Update video status
