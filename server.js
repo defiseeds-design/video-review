@@ -17,9 +17,21 @@ app.use('/videos', express.static('videos'));
 // Data storage
 const DATA_FILE = './data/videos.json';
 
-// Ensure directories exist
+// Ensure directories exist (with error handling for Railway)
 ['videos', 'data'].forEach(dir => {
-  if (!fs.existsSync(dir)) fs.mkdirSync(dir, { recursive: true });
+  try {
+    if (!fs.existsSync(dir)) {
+      fs.mkdirSync(dir, { recursive: true });
+      console.log(`Created directory: ${dir}`);
+    }
+    // Test write permissions
+    const testFile = path.join(dir, '.write-test');
+    fs.writeFileSync(testFile, 'test');
+    fs.unlinkSync(testFile);
+    console.log(`Directory ${dir} is writable`);
+  } catch (err) {
+    console.error(`Error with directory ${dir}:`, err.message);
+  }
 });
 
 // Initialize data file
@@ -126,29 +138,44 @@ app.get('/api/videos/:id', (req, res) => {
 });
 
 // Upload video
-app.post('/api/videos', upload.single('video'), (req, res) => {
-  if (!req.file) return res.status(400).json({ error: 'No video uploaded' });
-  
-  const data = loadData();
-  const video = {
-    id: uuidv4(),
-    title: req.body.title || 'Untitled',
-    description: req.body.description || '',
-    filename: req.file.filename,
-    originalName: req.file.originalname,
-    fileSize: req.file.size, // File size in bytes
-    mimeType: req.file.mimetype,
-    status: 'pending', // pending, approved, rejected
-    feedback: [],
-    shareToken: uuidv4().split('-')[0], // Short share token
-    views: 0,
-    createdAt: new Date().toISOString(),
-    updatedAt: new Date().toISOString()
-  };
-  
-  data.videos.unshift(video);
-  saveData(data);
-  res.json(video);
+app.post('/api/videos', (req, res, next) => {
+  upload.single('video')(req, res, (err) => {
+    if (err) {
+      console.error('Upload error:', err);
+      return res.status(500).json({ error: 'Upload failed', message: err.message });
+    }
+    
+    if (!req.file) {
+      return res.status(400).json({ error: 'No video uploaded' });
+    }
+    
+    try {
+      const data = loadData();
+      const video = {
+        id: uuidv4(),
+        title: req.body.title || 'Untitled',
+        description: req.body.description || '',
+        filename: req.file.filename,
+        originalName: req.file.originalname,
+        fileSize: req.file.size,
+        mimeType: req.file.mimetype,
+        status: 'pending',
+        feedback: [],
+        shareToken: uuidv4().split('-')[0],
+        views: 0,
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      
+      data.videos.unshift(video);
+      saveData(data);
+      console.log('Video uploaded successfully:', video.id);
+      res.json(video);
+    } catch (saveErr) {
+      console.error('Save error:', saveErr);
+      res.status(500).json({ error: 'Failed to save video data', message: saveErr.message });
+    }
+  });
 });
 
 // Track video view
