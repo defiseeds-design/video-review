@@ -137,7 +137,7 @@ app.get('/api/videos/:id', (req, res) => {
   res.json(video);
 });
 
-// Upload video
+// Upload video (file upload)
 app.post('/api/videos', (req, res, next) => {
   upload.single('video')(req, res, (err) => {
     if (err) {
@@ -176,6 +176,41 @@ app.post('/api/videos', (req, res, next) => {
       res.status(500).json({ error: 'Failed to save video data', message: saveErr.message });
     }
   });
+});
+
+// Add video by URL (no file upload needed)
+app.post('/api/videos/url', express.json(), (req, res) => {
+  const { url, title, description } = req.body;
+  
+  if (!url) {
+    return res.status(400).json({ error: 'Video URL is required' });
+  }
+  
+  try {
+    const data = loadData();
+    const video = {
+      id: uuidv4(),
+      title: title || 'Untitled',
+      description: description || '',
+      videoUrl: url, // External URL instead of local file
+      filename: null,
+      originalName: null,
+      status: 'pending',
+      feedback: [],
+      shareToken: uuidv4().split('-')[0],
+      views: 0,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString()
+    };
+    
+    data.videos.unshift(video);
+    saveData(data);
+    console.log('Video added via URL:', video.id, url);
+    res.json(video);
+  } catch (err) {
+    console.error('Error adding video:', err);
+    res.status(500).json({ error: 'Failed to add video', message: err.message });
+  }
 });
 
 // Track video view

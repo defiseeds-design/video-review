@@ -877,8 +877,20 @@
       <svg fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M6 18L18 6M6 6l12 12"/></svg>
     </button>
     <div class="review-panel p-6 fade-in">
-      <h2 class="text-white text-xl font-bold mb-6">Upload Video</h2>
+      <h2 class="text-white text-xl font-bold mb-6">Add Video</h2>
+      
+      <!-- Toggle between File and URL -->
+      <div class="flex mb-6 bg-twitter-border/30 rounded-full p-1">
+        <button type="button" id="tab-url" onclick="setUploadMode('url')" class="flex-1 py-2 px-4 rounded-full text-sm font-medium transition bg-twitter-blue text-white">
+          🔗 Paste URL
+        </button>
+        <button type="button" id="tab-file" onclick="setUploadMode('file')" class="flex-1 py-2 px-4 rounded-full text-sm font-medium transition text-twitter-secondary hover:text-white">
+          📁 Upload File
+        </button>
+      </div>
+      
       <form id="upload-form" enctype="multipart/form-data">
+        <input type="hidden" name="uploadMode" id="uploadMode" value="url">
         <div class="mb-4">
           <label class="block text-twitter-secondary text-sm mb-2">Title</label>
           <input type="text" name="title" required placeholder="e.g. Bank vs Solana Comparison"
@@ -889,10 +901,20 @@
           <textarea name="description" rows="3" placeholder="What will the tweet say?"
             class="w-full bg-transparent border border-twitter-border rounded-lg px-4 py-3 text-white placeholder-twitter-secondary focus:outline-none focus:border-twitter-blue transition resize-none"></textarea>
         </div>
-        <div class="mb-6">
+        
+        <!-- URL Input (shown by default) -->
+        <div id="url-input-section" class="mb-6">
+          <label class="block text-twitter-secondary text-sm mb-2">Video URL</label>
+          <input type="url" name="videoUrl" id="videoUrlInput" placeholder="https://example.com/video.mp4"
+            class="w-full bg-transparent border border-twitter-border rounded-lg px-4 py-3 text-white placeholder-twitter-secondary focus:outline-none focus:border-twitter-blue transition">
+          <p class="text-twitter-secondary text-xs mt-2">Paste a direct link to your video (Catbox, Google Drive, Dropbox, etc.)</p>
+        </div>
+        
+        <!-- File Input (hidden by default) -->
+        <div id="file-input-section" class="mb-6 hidden">
           <label class="block text-twitter-secondary text-sm mb-2">Video File</label>
           <div class="relative">
-            <input type="file" name="video" accept="video/*" required id="file-input"
+            <input type="file" name="video" accept="video/*" id="file-input"
               class="absolute inset-0 w-full h-full opacity-0 cursor-pointer z-10">
             <div id="file-label" class="border-2 border-dashed border-twitter-border rounded-xl px-4 py-8 text-center hover:border-twitter-blue/50 transition">
               <svg class="w-8 h-8 mx-auto mb-2 text-twitter-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
@@ -900,9 +922,10 @@
             </div>
           </div>
         </div>
+        
         <div class="flex gap-3">
           <button type="button" onclick="closeUploadModal()" class="flex-1 border border-twitter-border text-white py-3 rounded-full font-bold hover:bg-white/5 transition">Cancel</button>
-          <button type="submit" class="flex-1 bg-twitter-blue hover:bg-twitter-blue/90 text-white py-3 rounded-full font-bold transition">Upload</button>
+          <button type="submit" class="flex-1 bg-twitter-blue hover:bg-twitter-blue/90 text-white py-3 rounded-full font-bold transition">Add Video</button>
         </div>
       </form>
     </div>
@@ -1392,7 +1415,7 @@
               <p class="tweet-text">${v.description || v.title}</p>
               
               <div class="tweet-media relative">
-                <video data-src="/videos/${v.filename}" class="tweet-video" muted preload="none" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23000' width='100' height='100'/%3E%3C/svg%3E"></video>
+                <video data-src="${v.videoUrl || '/videos/' + v.filename}" class="tweet-video" muted preload="none" poster="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 100 100'%3E%3Crect fill='%23000' width='100' height='100'/%3E%3C/svg%3E"></video>
                 <span class="tweet-status status-${v.status}">${v.status.charAt(0).toUpperCase() + v.status.slice(1)}</span>
                 ${v.feedback && v.feedback.length > 0 ? `
                   <span class="absolute top-3 left-3 bg-orange/90 px-2 py-1 rounded-full text-xs font-medium text-white flex items-center gap-1">
@@ -1478,6 +1501,7 @@
     function openUploadModal() {
       document.getElementById('upload-modal').classList.remove('hidden');
       document.body.style.overflow = 'hidden';
+      setUploadMode('url'); // Default to URL mode
     }
 
     function closeUploadModal() {
@@ -1488,6 +1512,37 @@
         <svg class="w-8 h-8 mx-auto mb-2 text-twitter-secondary" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path stroke-linecap="round" stroke-linejoin="round" stroke-width="1.5" d="M7 16a4 4 0 01-.88-7.903A5 5 0 1115.9 6L16 6a5 5 0 011 9.9M15 13l-3-3m0 0l-3 3m3-3v12"/></svg>
         <p class="text-twitter-secondary text-sm">Drop video here or tap to browse</p>
       `;
+      setUploadMode('url');
+    }
+
+    function setUploadMode(mode) {
+      document.getElementById('uploadMode').value = mode;
+      const urlSection = document.getElementById('url-input-section');
+      const fileSection = document.getElementById('file-input-section');
+      const tabUrl = document.getElementById('tab-url');
+      const tabFile = document.getElementById('tab-file');
+      const urlInput = document.getElementById('videoUrlInput');
+      const fileInput = document.getElementById('file-input');
+      
+      if (mode === 'url') {
+        urlSection.classList.remove('hidden');
+        fileSection.classList.add('hidden');
+        tabUrl.classList.add('bg-twitter-blue', 'text-white');
+        tabUrl.classList.remove('text-twitter-secondary');
+        tabFile.classList.remove('bg-twitter-blue', 'text-white');
+        tabFile.classList.add('text-twitter-secondary');
+        urlInput.required = true;
+        fileInput.required = false;
+      } else {
+        urlSection.classList.add('hidden');
+        fileSection.classList.remove('hidden');
+        tabFile.classList.add('bg-twitter-blue', 'text-white');
+        tabFile.classList.remove('text-twitter-secondary');
+        tabUrl.classList.remove('bg-twitter-blue', 'text-white');
+        tabUrl.classList.add('text-twitter-secondary');
+        urlInput.required = false;
+        fileInput.required = true;
+      }
     }
 
     function openDetail(id) {
@@ -1495,13 +1550,14 @@
       const v = videos.find(x => x.id === id);
       if (!v) return;
       
-      document.getElementById('detail-video').src = `/videos/${v.filename}`;
+      const videoSrc = v.videoUrl || `/videos/${v.filename}`;
+      document.getElementById('detail-video').src = videoSrc;
       document.getElementById('detail-title').textContent = v.title;
       document.getElementById('detail-tweet-text').textContent = v.description || v.title;
       document.getElementById('detail-status').textContent = v.status.charAt(0).toUpperCase() + v.status.slice(1);
       document.getElementById('detail-status').className = `inline-block mt-1 px-3 py-1 rounded-full text-xs font-semibold status-${v.status}`;
       document.getElementById('share-link').value = `${location.origin}/share/${v.shareToken}`;
-      document.getElementById('download-link').href = `/videos/${v.filename}`;
+      document.getElementById('download-link').href = videoSrc;
       
       renderFeedback(v.feedback);
       
@@ -1828,40 +1884,61 @@
       e.preventDefault();
       const form = new FormData(e.target);
       const btn = e.target.querySelector('button[type="submit"]');
-      const file = form.get('video');
-      
-      // Client-side validation
-      if (!file || file.size === 0) {
-        showToast('Please select a video file', 'error');
-        return;
-      }
-      
-      if (file.size > 100 * 1024 * 1024) {
-        showToast('File too large. Maximum 100MB allowed.', 'error');
-        return;
-      }
-      
-      const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
-      if (!allowedTypes.includes(file.type)) {
-        showToast('Invalid file type. Use MP4, WebM, MOV, or AVI.', 'error');
-        return;
-      }
+      const uploadMode = form.get('uploadMode');
       
       btn.innerHTML = '<div class="spinner mx-auto"></div>';
       btn.disabled = true;
       
       try {
-        const res = await fetch('/api/videos', { method: 'POST', body: form });
+        let res;
+        
+        if (uploadMode === 'url') {
+          // URL mode - send JSON
+          const videoUrl = form.get('videoUrl');
+          if (!videoUrl) {
+            throw new Error('Please enter a video URL');
+          }
+          
+          res = await fetch('/api/videos/url', {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({
+              url: videoUrl,
+              title: form.get('title'),
+              description: form.get('description')
+            })
+          });
+        } else {
+          // File mode - send FormData
+          const file = form.get('video');
+          
+          if (!file || file.size === 0) {
+            throw new Error('Please select a video file');
+          }
+          
+          if (file.size > 100 * 1024 * 1024) {
+            throw new Error('File too large. Maximum 100MB allowed.');
+          }
+          
+          const allowedTypes = ['video/mp4', 'video/webm', 'video/quicktime', 'video/x-msvideo'];
+          if (!allowedTypes.includes(file.type)) {
+            throw new Error('Invalid file type. Use MP4, WebM, MOV, or AVI.');
+          }
+          
+          res = await fetch('/api/videos', { method: 'POST', body: form });
+        }
+        
         if (!res.ok) {
           const err = await res.json();
-          throw new Error(err.error || 'Upload failed');
+          throw new Error(err.error || 'Failed to add video');
         }
-        showToast('🎬 Video uploaded!', 'success');
+        
+        showToast('🎬 Video added!', 'success');
         closeUploadModal();
         loadVideos();
       } catch (err) {
-        showToast(err.message || 'Upload failed', 'error');
-        btn.textContent = 'Upload';
+        showToast(err.message || 'Failed to add video', 'error');
+        btn.textContent = 'Add Video';
         btn.disabled = false;
       }
     });

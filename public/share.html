@@ -224,14 +224,15 @@
         
         videoData = await res.json();
         
-        document.getElementById('video-player').src = `/videos/${videoData.filename}`;
+        const videoSrc = videoData.videoUrl || `/videos/${videoData.filename}`;
+        document.getElementById('video-player').src = videoSrc;
         document.getElementById('video-description').textContent = videoData.description || videoData.title;
         document.getElementById('video-date').textContent = new Date(videoData.createdAt).toLocaleDateString('en-US', {
           month: 'short', day: 'numeric', year: 'numeric'
         });
         document.getElementById('video-status').textContent = videoData.status.charAt(0).toUpperCase() + videoData.status.slice(1);
         document.getElementById('video-status').className = `px-2 py-0.5 rounded-full text-xs font-semibold status-${videoData.status}`;
-        document.getElementById('download-btn').href = `/videos/${videoData.filename}`;
+        document.getElementById('download-btn').href = videoSrc;
         
         document.title = `${videoData.title} | Validator.com`;
         
